@@ -1,0 +1,21 @@
+node_modules/
+dist/
+build/
+*.exe
+*.blockmap
+*.nsis
+*.yml.bak
+
+# engine binary (large, distributed separately)
+engine/*.exe
+engine/*.dll
+
+# user data
+config.json
+checkouts.json
+schedules.json
+
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini
