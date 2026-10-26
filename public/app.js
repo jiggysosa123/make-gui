@@ -3512,9 +3512,14 @@ function renderChangelog(p) {
       badge.style.cssText = "background:var(--accent);color:#fff;padding:2px 10px;border-radius:10px;font-size:12px;font-weight:600";
       const dateSpan = mk("span","mono"); dateSpan.textContent = r.date;
       dateSpan.style.cssText = "font-size:12px;opacity:.55";
-      const titleSpan = mk("span",""); titleSpan.textContent = r.title;
-      titleSpan.style.cssText = "font-weight:600;font-size:14px";
-      hdr.appendChild(badge); hdr.appendChild(titleSpan); hdr.appendChild(dateSpan);
+      hdr.appendChild(badge);
+      const cleanTitle = r.title.replace(/^v/, "");
+      if (cleanTitle !== r.ver) {
+        const titleSpan = mk("span",""); titleSpan.textContent = r.title;
+        titleSpan.style.cssText = "font-weight:600;font-size:14px";
+        hdr.appendChild(titleSpan);
+      }
+      hdr.appendChild(dateSpan);
       card.appendChild(hdr);
 
       const body = mk("div","card-body");
