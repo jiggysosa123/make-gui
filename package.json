@@ -16,7 +16,7 @@
     "electron-builder": "^24.0.0"
   },
   "dependencies": {
-    "archiver": "^8.0.0",
+    "archiver": "^6.0.2",
     "chokidar": "^3.6.0",
     "electron-updater": "^6.1.0",
     "unzipper": "^0.12.5",
