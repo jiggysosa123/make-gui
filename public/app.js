@@ -418,14 +418,15 @@ button,input,select,textarea{font-family:inherit}
 .co-img-wrap{width:100%;height:150px;background:var(--raised);overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .co-img-wrap img{width:100%;height:100%;object-fit:contain;padding:10px}
 .co-img-placeholder{color:var(--text-muted);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
-.co-body{padding:12px 14px 13px;display:flex;flex-direction:column;gap:6px;flex:1}
+.co-body{padding:12px 14px 10px;display:flex;flex-direction:column;gap:4px;flex:1;min-height:0}
 .co-site{font-size:10.5px;font-weight:600;letter-spacing:.07em;color:var(--text-muted);text-transform:uppercase}
-.co-product{font-size:13.5px;font-weight:600;color:var(--text);line-height:1.35}
+.co-product{font-size:13.5px;font-weight:600;color:var(--text);line-height:1.35;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .co-meta{display:flex;flex-wrap:wrap;gap:5px}
 .co-pill{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:6px;font-size:11px;font-weight:550;
   background:var(--raised);border:1px solid var(--border);color:var(--text-dim)}
 .co-pill.size{color:var(--text)}
-.co-ts{font-size:11px;color:var(--text-muted);margin-top:auto;padding-top:6px}
+.co-ts{font-size:11px;color:var(--text-muted);margin-top:auto;padding-top:3px}
 .co-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:8px;color:var(--text-muted);padding:40px 0;grid-column:1/-1}
 .co-empty-icon{font-size:34px;opacity:.35}
 .co-empty-lbl{font-size:13px;font-weight:550;color:var(--text-dim)}
@@ -3021,23 +3022,38 @@ function buildCoCard(co) {
   const ff = co.fields || [];
   const fieldVal = pattern => { const f = ff.find(x => pattern.test(x.name)); return f ? f.value : null; };
 
-  // Order button → opens modal
-  const orderNum = co.order || fieldVal(/order/i);
-  const orderEmail = fieldVal(/email/i);
-  const orderProfile = co.profile || fieldVal(/profile/i);
-  const orderAccount = co.account || fieldVal(/account/i);
-  const orderProxy = co.proxy || fieldVal(/proxy/i);
-  const orderPairs = [["Order", orderNum], ["Email", orderEmail], ["Profile", orderProfile], ["Account", orderAccount], ["Proxy", orderProxy]].filter(p => p[1]);
+  // Order button → opens modal (pull from co props + webhook fields)
+  const orderPairs = [
+    ["Order",   co.order   || fieldVal(/order/i)],
+    ["Email",   fieldVal(/email/i) || co.account],
+    ["Profile", co.profile || fieldVal(/profile/i)],
+    ["Account", fieldVal(/account|group/i)],
+    ["Proxy",   co.proxy   || fieldVal(/proxy/i)],
+    ["Price",   co.price   || fieldVal(/price|total|cost/i)],
+    ["Site",    co.site],
+  ].filter(p => p[1]);
   if (orderPairs.length) {
     const btn = mk("button","co-hover-btn order-btn","Order");
     btn.onclick = e => { e.stopPropagation(); openDetailModal("Order Details", orderPairs, true); };
     btnRow.appendChild(btn);
   }
 
-  // Setup button → opens modal
-  const setupPairs = [["Keyword",null],["Size",null],["Color",null],["Mode",null],["Quantity",null],["Delay",null]]
-    .map(([k]) => [k, fieldVal(new RegExp(k,"i")) || (k==="Size" ? co.size : k==="Mode" ? co.mode : null)])
-    .filter(p => p[1]);
+  // Setup button → opens modal (co props first, then fields, then show ALL remaining fields)
+  const setupKnown = [
+    ["Keyword",  fieldVal(/keyword|sku|product.?id/i)],
+    ["Size",     co.size  || fieldVal(/size|variant/i)],
+    ["Color",    co.color || fieldVal(/color|colour|style/i)],
+    ["Mode",     co.mode  || fieldVal(/mode/i)],
+    ["Quantity", co.qty   || fieldVal(/quantity|qty/i)],
+    ["Delay",    fieldVal(/delay/i)],
+    ["Task",     co.task  || fieldVal(/task|taskid/i)],
+  ].filter(p => p[1]);
+  // Also include any extra webhook fields not already covered above
+  const usedNames = new Set(["order","email","profile","account","proxy","price","total","cost","site","store",
+    "shop","domain","website","product","item","keyword","sku","size","variant","color","colour","style",
+    "mode","quantity","qty","delay","task","taskid","group","name","title","link","url"]);
+  const extraFields = ff.filter(f => !usedNames.has(f.name.toLowerCase().replace(/\s+/g,""))).map(f => [f.name, f.value]);
+  const setupPairs = [...setupKnown, ...extraFields];
   if (setupPairs.length) {
     const btn = mk("button","co-hover-btn setup-btn","Setup");
     btn.onclick = e => { e.stopPropagation(); openDetailModal("Setup Details", setupPairs, false); };
