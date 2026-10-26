@@ -63,6 +63,10 @@ contextBridge.exposeInMainWorld("api", {
     check:    ()   => ipcRenderer.invoke("updater:check"),
     install:  ()   => ipcRenderer.invoke("updater:install"),
   },
+  config: {
+    getGhToken: ()      => ipcRenderer.invoke("config:getGhToken"),
+    setGhToken: (token) => ipcRenderer.invoke("config:setGhToken", token),
+  },
   ws: {
     info: () => ipcRenderer.invoke("ws:info"),
   },
