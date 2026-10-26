@@ -48,7 +48,9 @@
         "from": "engine/",
         "to": "engine/",
         "filter": [
-          "**/*"
+          "*.exe",
+          "*.dll",
+          "README.md"
         ]
       }
     ],
