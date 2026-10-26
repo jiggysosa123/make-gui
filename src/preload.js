@@ -58,6 +58,13 @@ contextBridge.exposeInMainWorld("api", {
   shell: {
     open: (url) => ipcRenderer.invoke("shell:open", url),
   },
+  config: {
+    export: () => ipcRenderer.invoke("config:export"),
+    import: () => ipcRenderer.invoke("config:import"),
+  },
+  app: {
+    version: () => ipcRenderer.invoke("app:version"),
+  },
   updater: {
     onStatus: (cb) => { const h=(_,d)=>cb(d); ipcRenderer.on("updater:status", h); return ()=>ipcRenderer.off("updater:status", h); },
     check:    ()   => ipcRenderer.invoke("updater:check"),
