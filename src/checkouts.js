@@ -271,10 +271,26 @@ class CheckoutService extends EventEmitter {
           match._matchedOrder = true;
           if (!match.order && c.order) match.order = c.order;
           if (!match.orderUrl && c.orderUrl) match.orderUrl = c.orderUrl;
+          // Merge all order-embed fields into the success card
+          match.orderFields = (c.fields || []).slice();
+          // Also fill in extracted props the success embed might not have
+          if (!match.profile && c.profile) match.profile = c.profile;
+          if (!match.account && c.account) match.account = c.account;
+          if (!match.proxy   && c.proxy)   match.proxy   = c.proxy;
+          if (!match.price   && c.price)   match.price   = c.price;
+          if (!match.site    && c.site)    match.site    = c.site;
         }
         if (isSetup) {
           match.hasSetup = true;
           match._matchedSetup = true;
+          // Merge all setup-embed fields into the success card
+          match.setupFields = (c.fields || []).slice();
+          // Also fill in extracted props
+          if (!match.size  && c.size)  match.size  = c.size;
+          if (!match.color && c.color) match.color = c.color;
+          if (!match.mode  && c.mode)  match.mode  = c.mode;
+          if (!match.qty   && c.qty)   match.qty   = c.qty;
+          if (!match.task  && c.task)  match.task  = c.task;
         }
         remove.add(c);
       }

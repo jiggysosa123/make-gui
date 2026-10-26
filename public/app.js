@@ -3040,48 +3040,28 @@ function buildCoCard(co) {
   body.appendChild(mk("div","co-product", esc(co.product || co.headline || "Unknown product")));
 
   // — detail buttons row (Order + Setup) —
+  // The webhook sends 3 separate embeds: success, order, setup.
+  // _mergeRelated() merges them, storing the order/setup embed fields
+  // in co.orderFields / co.setupFields alongside the success card.
   const btnRow = mk("div","co-btn-row");
-  const ff = co.fields || [];
-  const normN = s => s.toLowerCase().replace(/[\s_\-#.:]+/g,"");
 
-  // Split ALL webhook fields into order-related vs setup-related by field name
-  const orderPattern = /order|confirm|email|login|profile|account|proxy|price|total|cost|amount|subtotal|site|store|shop|domain|payment|card/;
-  const orderFromFields = ff.filter(f => orderPattern.test(normN(f.name))).map(f => [f.name, f.value]);
-  const setupFromFields = ff.filter(f => !orderPattern.test(normN(f.name))).map(f => [f.name, f.value]);
+  // ORDER: use dedicated orderFields (from merged order embed), plus co-level props as fallback
+  const oFields = (co.orderFields || []).map(f => [f.name, f.value]).filter(p => p[1]);
+  const orderPairs = oFields.length ? oFields : [
+    ["Order #", co.order], ["Email", co.account], ["Profile", co.profile],
+    ["Proxy", co.proxy], ["Price", co.price], ["Site", co.site],
+  ].filter(p => p[1]);
+  // Prepend order # if orderFields didn't include it but co.order exists
+  if (co.order && oFields.length && !oFields.some(([n]) => /order/i.test(n))) {
+    orderPairs.unshift(["Order #", co.order]);
+  }
 
-  // Merge extracted co props (from embedToCheckout) with raw webhook fields
-  // co props fill in anything the field-name split missed
-  const orderProps = [
-    co.order   ? ["Order #", co.order]   : null,
-    co.account ? ["Account", co.account] : null,
-    co.profile ? ["Profile", co.profile] : null,
-    co.proxy   ? ["Proxy",   co.proxy]   : null,
-    co.price   ? ["Price",   co.price]   : null,
-    co.site    ? ["Site",    co.site]    : null,
-  ].filter(Boolean);
-  // Dedupe: if a co prop label already matches a webhook field name, skip the prop
-  const orderFieldNames = new Set(orderFromFields.map(([n])=>normN(n)));
-  const orderMerged = [...orderFromFields];
-  orderProps.forEach(([label, val]) => {
-    if (!orderFieldNames.has(normN(label)) && val) orderMerged.push([label, val]);
-  });
-
-  const setupProps = [
-    co.size  ? ["Size",     co.size]  : null,
-    co.color ? ["Color",    co.color] : null,
-    co.mode  ? ["Mode",     co.mode]  : null,
-    co.qty   ? ["Quantity", co.qty]   : null,
-    co.task  ? ["Task",     co.task]  : null,
-  ].filter(Boolean);
-  const setupFieldNames = new Set(setupFromFields.map(([n])=>normN(n)));
-  const setupMerged = [...setupFromFields];
-  setupProps.forEach(([label, val]) => {
-    if (!setupFieldNames.has(normN(label)) && val) setupMerged.push([label, val]);
-  });
-
-  // Filter out empty values and show buttons
-  const orderPairs = orderMerged.filter(p => p[1]);
-  const setupPairs = setupMerged.filter(p => p[1]);
+  // SETUP: use dedicated setupFields (from merged setup embed), plus co-level props as fallback
+  const sFields = (co.setupFields || []).map(f => [f.name, f.value]).filter(p => p[1]);
+  const setupPairs = sFields.length ? sFields : [
+    ["Size", co.size], ["Color", co.color], ["Mode", co.mode],
+    ["Quantity", co.qty], ["Task", co.task],
+  ].filter(p => p[1]);
 
   if (orderPairs.length) {
     const btn = mk("button","co-hover-btn order-btn","Order");
