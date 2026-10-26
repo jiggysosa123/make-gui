@@ -654,6 +654,7 @@ const MAKEBOT_MODES = [
   {v:"direct",               d:"No preload — domain changes, site launches"},
   {v:"wait",                 d:"Waits for checkpoint captcha"},
   {v:"lite",                 d:"No checkpoint monitor, relies on other tasks"},
+  {v:"login",                d:"Used to log into sites requiring accounts."},
 ];
 
 const PROFILE_COLS = [
