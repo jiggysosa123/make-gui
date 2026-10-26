@@ -3519,14 +3519,11 @@ function renderSettings(p) {
   upd.appendChild(mk("div","card-hdr","Updates"));
   const ub = mk("div","card-body");
   const updStatus = mk("span","mono");
-  if (updateState.state === "current")          updStatus.textContent = "You're on the latest version";
-  else if (updateState.state === "checking")    updStatus.textContent = "Checking for updates…";
+  if (updateState.state === "current")       updStatus.textContent = "You're on the latest version";
+  else if (updateState.state === "checking") updStatus.textContent = "Checking for updates…";
   else if (updateState.state === "downloading") updStatus.textContent = `Downloading v${updateState.version || ""}… ${updateState.percent||0}%`;
-  else if (updateState.state === "ready")       updStatus.textContent = `v${updateState.version} ready — restart to apply`;
-  else if (updateState.state === "error") {
-    const msg = updateState.error || "Update check failed";
-    updStatus.textContent = msg.includes("404") ? "No published release found — check your GitHub token" : "Update check failed";
-  }
+  else if (updateState.state === "ready")    updStatus.textContent = `v${updateState.version} ready — restart to apply`;
+  else if (updateState.state === "error")    updStatus.textContent = updateState.error || "Update check failed";
   else updStatus.textContent = "Auto-updater inactive (dev mode)";
   const checkBtn = mkBtn("Check for updates","sm", () => { if (api.updater) { api.updater.check(); toast("Checking…"); } });
   ub.appendChild(setRow("Auto-update", "MakeBot+ checks GitHub for new releases on launch", checkBtn));
@@ -3534,18 +3531,6 @@ function renderSettings(p) {
   if (updateState.state === "ready") {
     ub.appendChild(setRow("", "", mkBtn("Restart & Update","pr sm", () => api.updater.install())));
   }
-  // GitHub token for private-repo auto-updates
-  const ghInput = mk("input","finput"); ghInput.type = "password"; ghInput.placeholder = "ghp_…";
-  ghInput.style.width = "260px"; ghInput.style.fontFamily = "var(--mono)"; ghInput.style.fontSize = "12px";
-  if (api.config) api.config.getGhToken().then(t => { if (t) ghInput.value = t; });
-  const ghSave = mkBtn("Save","sm", async () => {
-    if (!api.config) return;
-    await api.config.setGhToken(ghInput.value);
-    toast(ghInput.value ? "GitHub token saved — restart app to apply" : "GitHub token cleared");
-  });
-  const ghRow = mk("div",""); ghRow.style.display = "flex"; ghRow.style.gap = "8px"; ghRow.style.alignItems = "center";
-  ghRow.appendChild(ghInput); ghRow.appendChild(ghSave);
-  ub.appendChild(setRow("GitHub token", "Required for auto-updates from a private repo (PAT with repo scope)", ghRow));
   upd.appendChild(ub);
   grid.appendChild(upd);
 
