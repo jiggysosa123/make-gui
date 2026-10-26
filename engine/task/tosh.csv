@@ -1,0 +1,7 @@
+profileGroup,profileName,proxyGroup,accountGroup,input,size,color,site,mode,cartQuantity,delay
+l2,ALL,crazy,none,vans -gs -ps -td -infant -kids -grade -toddler -crib -boot -youth,9&10&11&11.5&12&13&14,random,checkout.satoshinakamoto.cloud,preload,1,5000
+l2,ALL,crazy,none,vans -gs -ps -td -infant -kids -grade -toddler -crib -boot -youth,9&10&11&11.5&12&13&14,random,checkout.satoshinakamoto.cloud,preload,1,5000
+l2,ALL,vt,none,vans -gs -ps -td -infant -kids -grade -toddler -crib -boot -youth,9&10&11&11.5&12&13&14,random,checkout.satoshinakamoto.cloud,preload,1,5000
+l2,ALL,rf,none,vans -gs -ps -td -infant -kids -grade -toddler -crib -boot -youth,9&10&11&11.5&12&13&14,random,checkout.satoshinakamoto.cloud,preload,1,5000
+l2,ALL,wealth,none,vans -gs -ps -td -infant -kids -grade -toddler -crib -boot -youth,9&10&11&11.5&12&13&14,random,checkout.satoshinakamoto.cloud,preload,1,5000
+l2,ALL,wealth2,none,vans -gs -ps -td -infant -kids -grade -toddler -crib -boot -youth,9&10&11&11.5&12&13&14,random,checkout.satoshinakamoto.cloud,preload,1,5000
