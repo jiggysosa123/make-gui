@@ -501,11 +501,14 @@ select.finput{padding-right:6px}
 .co-status.success{color:var(--t-success);border-color:color-mix(in srgb,var(--t-success) 45%,transparent)}
 .co-status.declined{color:var(--t-error);border-color:color-mix(in srgb,var(--t-error) 45%,transparent)}
 .co-status.other{color:var(--text-dim);border-color:var(--border)}
-.co-badge{position:absolute;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:11px;font-weight:700;
-  background:var(--panel);border:1px solid var(--border);z-index:2}
-.co-badge.order-badge{top:10px;left:10px;color:var(--t-checkout);border-color:color-mix(in srgb,var(--t-checkout) 40%,transparent);font-family:"Cascadia Mono",Consolas,monospace}
-.co-badge.setup-badge{top:10px;right:10px;color:var(--text-dim);border-color:var(--border)}
-.co-badge svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.7}
+.co-detail-row{display:flex;align-items:baseline;gap:8px;margin-top:4px;font-size:11.5px;line-height:1.4}
+.co-detail-label{color:var(--text-dim);font-weight:600;white-space:nowrap;min-width:38px}
+.co-detail-value{color:var(--text);font-family:"Cascadia Mono",Consolas,monospace;font-size:11px}
+.co-setup-row{flex-wrap:wrap}
+.co-setup-vals{display:flex;flex-wrap:wrap;gap:4px 10px}
+.co-setup-tag{display:inline-flex;gap:3px;align-items:baseline}
+.co-setup-key{color:var(--text-dim);font-size:10px;text-transform:uppercase;letter-spacing:.3px}
+.co-setup-val{color:var(--text);font-family:"Cascadia Mono",Consolas,monospace;font-size:11px}
 /* ── UPDATE BAR ── */
 .update-bar{position:fixed;bottom:0;left:0;right:0;height:38px;display:flex;align-items:center;justify-content:center;gap:10px;
   background:color-mix(in srgb,var(--accent) 14%,var(--bg));border-top:1px solid var(--accent);z-index:900;
@@ -3007,35 +3010,43 @@ function buildCoCard(co) {
   }
   imgWrap.appendChild(mk("span",`co-status ${co.status}`, co.status==="other" ? esc(co.headline||"webhook").slice(0,22) : co.status));
 
-  // order badge — top-left of product image
-  const hasOrder = co.order || co.hasOrder || co.fields?.some(f => /order/i.test(f.name));
-  if (hasOrder) {
-    const oBadge = mk("span","co-badge order-badge","#");
-    oBadge.title = co.order ? `Order ${co.order}` : "Order confirmed";
-    imgWrap.appendChild(oBadge);
-  }
-
-  // setup badge (top-right gear icon)
-  const hasSetup = co.hasSetup || co.fields?.some(f => /setup|initialized|init/i.test(f.name) || /setup|initialized|init/i.test(f.value));
-  if (hasSetup) {
-    const sBadge = mk("span","co-badge setup-badge");
-    sBadge.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>`;
-    sBadge.title = "Setup detected";
-    imgWrap.appendChild(sBadge);
-  }
-
   card.appendChild(imgWrap);
 
   const body = mk("div","co-body");
   if (co.site) body.appendChild(mk("div","co-site", esc(co.site)));
   body.appendChild(mk("div","co-product", esc(co.product || co.headline || "Unknown product")));
 
+  // Order # row
+  const orderNum = co.order || (co.fields||[]).find(f => /order/i.test(f.name))?.value;
+  if (orderNum) {
+    const oRow = mk("div","co-detail-row");
+    oRow.appendChild(mk("span","co-detail-label","Order"));
+    oRow.appendChild(mk("span","co-detail-value", esc(orderNum.startsWith("#") ? orderNum : `#${orderNum}`)));
+    body.appendChild(oRow);
+  }
+
+  // Setup details row — keyword, size, color, mode, quantity, delay
+  const setupFields = (co.fields||[]).filter(f => /keyword|size|color|mode|quantity|delay/i.test(f.name));
+  if (setupFields.length) {
+    const sRow = mk("div","co-detail-row co-setup-row");
+    sRow.appendChild(mk("span","co-detail-label","Setup"));
+    const vals = mk("span","co-detail-value co-setup-vals");
+    setupFields.forEach(f => {
+      const tag = mk("span","co-setup-tag");
+      tag.appendChild(mk("span","co-setup-key", esc(f.name)));
+      tag.appendChild(document.createTextNode(" "));
+      tag.appendChild(mk("span","co-setup-val", esc(f.value)));
+      vals.appendChild(tag);
+    });
+    sRow.appendChild(vals);
+    body.appendChild(sRow);
+  }
+
   const meta = mk("div","co-meta");
   const pill = (text, cls="") => { if (text) meta.appendChild(mk("span",`co-pill ${cls}`, esc(text))); };
   if (co.size && !/default title/i.test(co.size)) pill(co.size, "size");
   pill(co.color);
   if (co.qty && co.qty !== "1") pill(`×${co.qty}`);
-  if (co.order) pill(co.order.startsWith("#") ? co.order : `#${co.order}`, "order");
   body.appendChild(meta);
 
   const sub = [co.profile, co.account].filter(Boolean);
