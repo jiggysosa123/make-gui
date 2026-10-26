@@ -470,6 +470,32 @@ ipcMain.handle("config:import", async () => {
 
 ipcMain.handle("app:version", () => app.getVersion());
 
+ipcMain.handle("releases:fetch", async () => {
+  try {
+    const https = require("https");
+    const data = await new Promise((resolve, reject) => {
+      const req = https.get("https://api.github.com/repos/jiggysosa123/make-gui/releases?per_page=20", {
+        headers: { "User-Agent": "MakeBot-Console" },
+      }, res => {
+        let body = "";
+        res.on("data", c => body += c);
+        res.on("end", () => {
+          if (res.statusCode === 200) resolve(JSON.parse(body));
+          else reject(new Error(`GitHub ${res.statusCode}`));
+        });
+      });
+      req.on("error", reject);
+      req.setTimeout(8000, () => { req.destroy(); reject(new Error("timeout")); });
+    });
+    return data.filter(r => !r.draft).map(r => ({
+      ver: (r.tag_name || "").replace(/^v/, ""),
+      date: (r.published_at || r.created_at || "").slice(0, 10),
+      title: r.name || r.tag_name || "",
+      body: r.body || "",
+    }));
+  } catch { return null; }
+});
+
 // ── IPC: notification sound ──────────────────────────────────────────────────
 ipcMain.handle("sound:pick", async () => {
   const r = await dialog.showOpenDialog(win, {
