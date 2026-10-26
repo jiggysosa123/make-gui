@@ -411,14 +411,14 @@ button,input,select,textarea{font-family:inherit}
 
 .co-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px;overflow-y:auto;flex:1;align-content:start}
 .co-card{background:var(--panel);border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;
-  transition:border-color .15s,box-shadow .15s,transform .15s;position:relative}
+  transition:border-color .15s,box-shadow .15s,transform .15s;position:relative;cursor:pointer}
 .co-card:hover{border-color:var(--border-hi);box-shadow:var(--shadow);transform:translateY(-1px)}
 .co-card.fresh{border-color:var(--accent);animation:flashIn .8s ease}
 @keyframes flashIn{0%{box-shadow:0 0 0 4px var(--accent-dim)}100%{box-shadow:none}}
-.co-img-wrap{width:100%;height:150px;background:var(--raised);overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.co-img-wrap{width:100%;height:150px;background:var(--raised);overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative}
 .co-img-wrap img{width:100%;height:100%;object-fit:contain;padding:10px}
 .co-img-placeholder{color:var(--text-muted);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
-.co-body{padding:12px 14px 10px;display:flex;flex-direction:column;gap:4px;flex:1;min-height:0}
+.co-body{padding:12px 14px 10px;display:flex;flex-direction:column;gap:4px;flex:1}
 .co-site{font-size:10.5px;font-weight:600;letter-spacing:.07em;color:var(--text-muted);text-transform:uppercase}
 .co-product{font-size:13.5px;font-weight:600;color:var(--text);line-height:1.35;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -518,10 +518,7 @@ select.finput{padding-right:6px}
 .update-bar .update-msg{font-weight:500}
 .update-bar button{font-size:11.5px;padding:4px 14px;border-radius:5px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer;font-weight:600}
 .update-bar button:hover{filter:brightness(1.1)}
-.co-card{cursor:pointer}
 .co-card.declined{opacity:.75}
-.co-img-wrap{position:relative;background:#f4f4f2}
-.co-img-wrap.noimg{background:var(--raised)}
 .co-pill.order{color:var(--t-checkout);border-color:color-mix(in srgb,var(--t-checkout) 35%,transparent);font-family:"Cascadia Mono",Consolas,monospace}
 .co-sub{font-size:11.5px;color:var(--text-dim);display:flex;gap:10px;flex-wrap:wrap}
 .co-toolbar{display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
@@ -647,6 +644,18 @@ const TASK_COLS = [
   {k:"delay",        l:"Delay",          w:80},
 ];
 
+const MAKEBOT_MODES = [
+  {v:"preload",              d:"High-speed, pre-prepared data"},
+  {v:"preloadwait",          d:"Preload + waits for captcha checkpoint"},
+  {v:"preloadstuck",         d:"Preload for restocks with stuck queue"},
+  {v:"preloadstuckwait",     d:"Preload + stuck queue + captcha wait"},
+  {v:"preloadwaitlite",      d:"Preload + captcha wait, no checkpoint monitor"},
+  {v:"preloadwaitlitestuck", d:"Preload + wait + lite + stuck queue"},
+  {v:"direct",               d:"No preload — domain changes, site launches"},
+  {v:"wait",                 d:"Waits for checkpoint captcha"},
+  {v:"lite",                 d:"No checkpoint monitor, relies on other tasks"},
+];
+
 const PROFILE_COLS = [
   {k:"profileName",  l:"Profile Name",   w:110},
   {k:"firstName",    l:"First Name",     w:100},
@@ -684,6 +693,7 @@ const ICON = {
   accounts:  '<circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M15 8l2 2"/>',
   precookie: '<path d="M12 3a9 9 0 1 0 9 9 4 4 0 0 1-4-4 4 4 0 0 1-5-5Z"/><circle cx="9" cy="13" r="1"/><circle cx="14" cy="16" r="1"/><circle cx="8" cy="9" r="1"/>',
   taskgroups:'<path d="M4 7h3M4 12h3M4 17h3"/><rect x="10" y="5" width="10" height="4" rx="1"/><rect x="10" y="10" width="10" height="4" rx="1"/><rect x="10" y="15" width="10" height="4" rx="1"/>',
+  help:      '<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
   changelog: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M16 13H8M16 17H8M10 9H8"/>',
   settings:  '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/>',
   eye:       '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
@@ -697,9 +707,9 @@ const NAV = [
   { sec: "Run",       items: [["dashboard","Dashboard"],["checkouts","Checkouts"],["taskgroups","Task Groups"],["engine","Engine"]] },
   { sec: "Configure", items: [["tasks","Tasks"],["profiles","Profiles"],["proxies","Proxies"],["accounts","Accounts"],["precookie","Pre-cookie"]] },
 ];
-const TABS = ["dashboard","checkouts","taskgroups","engine","tasks","profiles","proxies","accounts","precookie","changelog","settings"];
+const TABS = ["dashboard","checkouts","taskgroups","engine","tasks","profiles","proxies","accounts","precookie","help","changelog","settings"];
 const TITLES = { dashboard:"Dashboard", checkouts:"Checkouts", taskgroups:"Task Groups", engine:"Engine", tasks:"Tasks", profiles:"Profiles",
-                 proxies:"Proxies", accounts:"Accounts", precookie:"Pre-cookie", changelog:"Changelog", settings:"Settings" };
+                 proxies:"Proxies", accounts:"Accounts", precookie:"Pre-cookie", help:"Help", changelog:"Changelog", settings:"Settings" };
 
 // sidebar
 const side = mk("aside","side");
@@ -787,6 +797,7 @@ NAV.forEach(({ sec, items }) => {
 })();
 side.appendChild(nav);
 const foot = mk("div","side-foot");
+foot.appendChild(navItem("help","Help"));
 foot.appendChild(navItem("changelog","Changelog"));
 foot.appendChild(navItem("settings","Settings"));
 const engCard = mk("div","eng-card");
@@ -2145,14 +2156,23 @@ function renderBasicMain(main, activeGroup, rebuild) {
       kwCol.appendChild(kwLbl); kwCol.appendChild(kwContainer);
       row2.appendChild(kwCol);
 
-      // inline fields
+      // inline fields — MODE gets a dropdown, rest are text inputs
       [["SITE","site"],["MODE","mode"],["SIZE","size"],["COLOUR","color"],["QTY","cartQuantity"],["DELAY","delay"]].forEach(([lbl,key])=>{
         const col = mk("div","bt-card-col bt-card-sm-col");
         const lb = mk("div","bt-card-lbl"); lb.textContent = lbl;
-        const inp = mk("input","finput bt-card-inp");
-        inp.value = r[key]||""; inp.placeholder = lbl.toLowerCase();
-        inp.oninput = () => { r[key] = inp.value; scheduleSave(); };
-        col.appendChild(lb); col.appendChild(inp);
+        if (key === "mode") {
+          const sel = mk("select","finput bt-card-sel");
+          const blank = mk("option"); blank.value = ""; blank.textContent = "mode"; sel.appendChild(blank);
+          MAKEBOT_MODES.forEach(m => { const o = mk("option"); o.value = m.v; o.textContent = m.v; o.title = m.d; if (m.v === r[key]) o.selected = true; sel.appendChild(o); });
+          if (r[key] && !MAKEBOT_MODES.find(m => m.v === r[key])) { const o = mk("option"); o.value = o.textContent = r[key]; o.selected = true; sel.appendChild(o); }
+          sel.onchange = () => { r[key] = sel.value; scheduleSave(); };
+          col.appendChild(lb); col.appendChild(sel);
+        } else {
+          const inp = mk("input","finput bt-card-inp");
+          inp.value = r[key]||""; inp.placeholder = lbl.toLowerCase();
+          inp.oninput = () => { r[key] = inp.value; scheduleSave(); };
+          col.appendChild(lb); col.appendChild(inp);
+        }
         row2.appendChild(col);
       });
       body.appendChild(row2);
@@ -2235,7 +2255,9 @@ function renderBasicMain(main, activeGroup, rebuild) {
   bRow2.appendChild(bKwCol);
 
   const bSite = mk("input","finput bt-card-inp"); bSite.placeholder = "site";
-  const bMode = mk("input","finput bt-card-inp"); bMode.placeholder = "mode";
+  const bMode = mk("select","finput bt-card-sel");
+  { const blank = mk("option"); blank.value = ""; blank.textContent = "mode"; bMode.appendChild(blank);
+    MAKEBOT_MODES.forEach(m => { const o = mk("option"); o.value = m.v; o.textContent = m.v; o.title = m.d; bMode.appendChild(o); }); }
   const bSize = mk("input","finput bt-card-inp"); bSize.placeholder = "size";
   const bColor = mk("input","finput bt-card-inp"); bColor.placeholder = "colour";
   const bQty = mk("input","finput bt-card-inp"); bQty.placeholder = "qty"; bQty.value = "1";
@@ -3536,9 +3558,253 @@ function renderTab(t) {
   else if (t==="precookie")renderTextTab(p,{ stateKey:"precookies",folder:"precookie", ext:".txt", hint:"Accounts needing pre-cookie: email:password", ph:"user@example.com:password123", tabLabel:"precookie" });
   else if (t==="accounts") renderTextTab(p,{ stateKey:"accounts",  folder:"account",   ext:".txt", hint:"email:password — one per line", ph:"user@gmail.com:password123", tabLabel:"accounts" });
   else if (t==="engine")   renderEngine(p);
+  else if (t==="help")      renderHelp(p);
   else if (t==="changelog") renderChangelog(p);
   else if (t==="settings") renderSettings(p);
   setHeader(t);
+}
+
+// ── HELP / FAQ ──────────────────────────────────────────────────────────────
+function renderHelp(p) {
+  p.innerHTML = "";
+  const wrap = mk("div","help-wrap");
+  wrap.style.cssText = "max-width:820px;margin:0 auto;padding:24px 0 60px;display:flex;flex-direction:column;gap:20px;";
+
+  /* ── search bar ── */
+  const search = mk("input","finput");
+  search.type = "text"; search.placeholder = "Search help topics…";
+  search.style.cssText = "width:100%;margin-bottom:6px;font-size:14px;";
+  wrap.appendChild(search);
+
+  /* ── accordion helper ── */
+  function section(title, contentHTML) {
+    const sec = mk("details","help-section");
+    sec.style.cssText = "background:var(--panel);border:1px solid var(--border);border-radius:10px;overflow:hidden;";
+    const sum = mk("summary");
+    sum.style.cssText = "padding:14px 18px;font-weight:600;font-size:14.5px;color:var(--text);cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;user-select:none;";
+    sum.innerHTML = title + '<span style="font-size:11px;color:var(--text-dim);transition:transform .2s">▶</span>';
+    sec.addEventListener("toggle",()=>{ sum.querySelector("span").style.transform = sec.open ? "rotate(90deg)" : ""; });
+    const body = mk("div");
+    body.style.cssText = "padding:0 18px 16px;font-size:13px;line-height:1.65;color:var(--text-dim);";
+    body.innerHTML = contentHTML;
+    sec.appendChild(sum);
+    sec.appendChild(body);
+    return sec;
+  }
+
+  /* helper for tables */
+  const tblStyle = 'style="width:100%;border-collapse:collapse;margin:8px 0 4px;font-size:12.5px;"';
+  const thStyle  = 'style="text-align:left;padding:6px 10px;border-bottom:2px solid var(--border);color:var(--text);font-weight:600;"';
+  const tdStyle  = 'style="padding:6px 10px;border-bottom:1px solid var(--border);vertical-align:top;"';
+  const codeS    = 'style="background:var(--raised);padding:1px 5px;border-radius:4px;font-family:monospace;font-size:12px;"';
+
+  /* ═══ SECTIONS ═══ */
+
+  wrap.appendChild(section("Modes &amp; Sub-modes", `
+    <p style="margin:0 0 10px"><strong style="color:var(--text)">Main Modes</strong></p>
+    <table ${tblStyle}>
+      <tr><th ${thStyle}>Mode</th><th ${thStyle}>Description</th></tr>
+      <tr><td ${tdStyle}><code ${codeS}>preload</code></td><td ${tdStyle}>High-speed — data is pre-prepared before drop. The primary mode for most releases.</td></tr>
+      <tr><td ${tdStyle}><code ${codeS}>direct</code></td><td ${tdStyle}>No preloading — used for domain changes, site launches, or when product pages aren't up yet.</td></tr>
+    </table>
+    <p style="margin:14px 0 6px;color:var(--text-dim);font-size:12px;">⚠️ <code ${codeS}>safe</code>, <code ${codeS}>fast</code>, and <code ${codeS}>human</code> are <strong>deprecated</strong> — they still run but are no longer recommended.</p>
+
+    <p style="margin:16px 0 10px"><strong style="color:var(--text)">Sub-modes</strong></p>
+    <table ${tblStyle}>
+      <tr><th ${thStyle}>Sub-mode</th><th ${thStyle}>What it does</th></tr>
+      <tr><td ${tdStyle}><code ${codeS}>wait</code></td><td ${tdStyle}>Waits for a captcha/checkpoint before proceeding.</td></tr>
+      <tr><td ${tdStyle}><code ${codeS}>pause</code></td><td ${tdStyle}>Pauses the task right before checkout for manual confirmation.</td></tr>
+      <tr><td ${tdStyle}><code ${codeS}>login</code></td><td ${tdStyle}>Logs into a Shopify account before carting (requires accounts file).</td></tr>
+      <tr><td ${tdStyle}><code ${codeS}>stuck</code></td><td ${tdStyle}>For restocks — sits in queue instead of retrying the product page.</td></tr>
+      <tr><td ${tdStyle}><code ${codeS}>shoppay</code></td><td ${tdStyle}>Attempts ShopPay express checkout (requires account + saved card).</td></tr>
+      <tr><td ${tdStyle}><code ${codeS}>lite</code></td><td ${tdStyle}>Skips checkpoint monitor — relies on another task group to handle it.</td></tr>
+      <tr><td ${tdStyle}><code ${codeS}>store</code></td><td ${tdStyle}>Stores/saves cookies for reuse on later runs.</td></tr>
+      <tr><td ${tdStyle}><code ${codeS}>free</code></td><td ${tdStyle}>Skips payment — for 100% discount / free-checkout items.</td></tr>
+      <tr><td ${tdStyle}><code ${codeS}>cod</code></td><td ${tdStyle}>Cash On Delivery — skips the payment step entirely.</td></tr>
+    </table>
+
+    <p style="margin:16px 0 10px"><strong style="color:var(--text)">Valid Combined Modes</strong></p>
+    <table ${tblStyle}>
+      <tr><th ${thStyle}>Combined Mode</th><th ${thStyle}>Behaviour</th></tr>
+      <tr><td ${tdStyle}><code ${codeS}>preload</code></td><td ${tdStyle}>Standard preload.</td></tr>
+      <tr><td ${tdStyle}><code ${codeS}>preloadwait</code></td><td ${tdStyle}>Preload + waits for captcha checkpoint.</td></tr>
+      <tr><td ${tdStyle}><code ${codeS}>preloadstuck</code></td><td ${tdStyle}>Preload for restocks with stuck queue.</td></tr>
+      <tr><td ${tdStyle}><code ${codeS}>preloadstuckwait</code></td><td ${tdStyle}>Preload + stuck queue + captcha wait.</td></tr>
+      <tr><td ${tdStyle}><code ${codeS}>preloadwaitlite</code></td><td ${tdStyle}>Preload + captcha wait, no checkpoint monitor.</td></tr>
+      <tr><td ${tdStyle}><code ${codeS}>preloadwaitlitestuck</code></td><td ${tdStyle}>Preload + wait + lite + stuck queue.</td></tr>
+      <tr><td ${tdStyle}><code ${codeS}>direct</code></td><td ${tdStyle}>No preload.</td></tr>
+      <tr><td ${tdStyle}><code ${codeS}>wait</code></td><td ${tdStyle}>Waits for checkpoint captcha.</td></tr>
+      <tr><td ${tdStyle}><code ${codeS}>lite</code></td><td ${tdStyle}>No checkpoint monitor, relies on other tasks.</td></tr>
+    </table>
+
+    <p style="margin:14px 0 6px"><strong style="color:var(--text)">Recommended Setups</strong></p>
+    <ul style="margin:0;padding-left:18px;">
+      <li><strong>Restocks / Sitting:</strong> <code ${codeS}>preloadstuckwait</code> — queue + captcha wait.</li>
+      <li><strong>Standard drops:</strong> <code ${codeS}>preloadwait</code> — preload + captcha.</li>
+      <li><strong>Multiple groups, one monitor:</strong> Group 1 uses <code ${codeS}>preloadwait</code>, others use <code ${codeS}>preloadwaitlite</code>.</li>
+      <li><strong>Unknown domain / site launch:</strong> <code ${codeS}>direct</code>.</li>
+    </ul>
+  `));
+
+  wrap.appendChild(section("Task Input — Keywords &amp; Variants", `
+    <p style="margin:0 0 10px"><strong style="color:var(--text)">Keywords vs Variants</strong></p>
+    <table ${tblStyle}>
+      <tr><th ${thStyle}>Field</th><th ${thStyle}>Format</th><th ${thStyle}>Example</th></tr>
+      <tr><td ${tdStyle}>Keyword</td><td ${tdStyle}>Plain text — matches product titles</td><td ${tdStyle}><code ${codeS}>yeezy slide</code></td></tr>
+      <tr><td ${tdStyle}>Variant</td><td ${tdStyle}>Starts with <code ${codeS}>:</code></td><td ${tdStyle}><code ${codeS}>:44532194181288</code></td></tr>
+      <tr><td ${tdStyle}>Exclude</td><td ${tdStyle}>Prefix with <code ${codeS}>-</code></td><td ${tdStyle}><code ${codeS}>yeezy slide -onyx</code></td></tr>
+    </table>
+
+    <p style="margin:14px 0 6px"><strong style="color:var(--text)">Multiple Variants</strong></p>
+    <p style="margin:0 0 8px;">Separate with <code ${codeS}>##</code>: <code ${codeS}>:44532194181288##:44532194181295</code></p>
+    <p style="margin:0 0 8px;">Use <code ${codeS}>:random</code> as a wildcard fallback if the specific variant is sold out.</p>
+
+    <p style="margin:14px 0 6px"><strong style="color:var(--text)">Detection Limit</strong></p>
+    <p style="margin:0;">MakeBot+ scans up to <strong>25 items</strong> from the sitemap by default. If the target product is deeper in the catalog, use a variant ID instead of keywords.</p>
+
+    <p style="margin:14px 0 6px"><strong style="color:var(--text)">Multi-Cart (Beta)</strong></p>
+    <p style="margin:0;">To add multiple products to one cart, separate keywords with <code ${codeS}>+</code>: <code ${codeS}>yeezy slide + yeezy foam</code>. Both items are carted before checkout.</p>
+  `));
+
+  wrap.appendChild(section("Site Configuration", `
+    <p style="margin:0 0 10px"><strong style="color:var(--text)">Domain Entry</strong></p>
+    <p style="margin:0 0 8px;">Enter the store domain only — no <code ${codeS}>https://</code> prefix, no trailing path.</p>
+    <p style="margin:0 0 4px;">✅ <code ${codeS}>kith.com</code></p>
+    <p style="margin:0 0 12px;">❌ <code ${codeS}>https://kith.com/collections/new</code></p>
+
+    <p style="margin:14px 0 6px"><strong style="color:var(--text)">Special Checkout Domains</strong></p>
+    <p style="margin:0;">Some stores use a separate checkout domain (e.g. <code ${codeS}>pay.kith.com</code>). If checkout redirects fail, check whether the site uses a custom checkout URL and enter that instead.</p>
+  `));
+
+  wrap.appendChild(section("Profile Setup", `
+    <p style="margin:0 0 10px"><strong style="color:var(--text)">Editing Profiles</strong></p>
+    <p style="margin:0 0 8px;">Use <strong>RonsEditor</strong> or this app's built-in profile editor. Every field must have a value — <em>no empty fields</em>.</p>
+
+    <p style="margin:14px 0 6px"><strong style="color:var(--text)">Country &amp; State Codes</strong></p>
+    <table ${tblStyle}>
+      <tr><th ${thStyle}>Field</th><th ${thStyle}>Format</th><th ${thStyle}>Example</th></tr>
+      <tr><td ${tdStyle}>Country</td><td ${tdStyle}>Two-letter ISO code</td><td ${tdStyle}><code ${codeS}>US</code>, <code ${codeS}>CA</code>, <code ${codeS}>GB</code></td></tr>
+      <tr><td ${tdStyle}>State / Province</td><td ${tdStyle}>Full region code</td><td ${tdStyle}><code ${codeS}>US-NY</code>, <code ${codeS}>CA-ON</code></td></tr>
+    </table>
+    <p style="margin:8px 0 0;font-size:12px;color:var(--text-dim);">State/province must include the country prefix (e.g. <code ${codeS}>US-CA</code> not just <code ${codeS}>CA</code>).</p>
+  `));
+
+  wrap.appendChild(section("Accounts &amp; Login Mode", `
+    <p style="margin:0 0 10px"><strong style="color:var(--text)">Login Mode</strong></p>
+    <p style="margin:0 0 8px;">Add <code ${codeS}>login</code> to your mode string (e.g. <code ${codeS}>preloadwaitlogin</code>) to log into a Shopify customer account before carting. Requires an accounts file loaded with <code ${codeS}>email:password</code> pairs.</p>
+
+    <p style="margin:14px 0 6px"><strong style="color:var(--text)">Cookie Saving</strong></p>
+    <p style="margin:0 0 8px;">Add <code ${codeS}>store</code> to your mode to save session cookies after a successful run. On the next run, the bot reuses them to skip login/captcha.</p>
+
+    <p style="margin:14px 0 6px"><strong style="color:var(--text)">Manual Cookie Generation</strong></p>
+    <p style="margin:0;">Open the <strong>Pre-cookie</strong> tab, load your accounts, and run. The bot visits the target site, solves captchas, and stores cookies for later checkout runs.</p>
+  `));
+
+  wrap.appendChild(section("Task Groups", `
+    <p style="margin:0 0 10px"><strong style="color:var(--text)">Group Numbers</strong></p>
+    <ul style="margin:0;padding-left:18px;">
+      <li>Enter <code ${codeS}>1</code> for <strong>all tasks start together</strong>.</li>
+      <li>Enter <code ${codeS}>2</code> for <strong>staggered start</strong> — second batch waits for group 1 to begin checkout.</li>
+      <li>Higher numbers create more stagger tiers.</li>
+    </ul>
+    <p style="margin:10px 0 0;">Task groups control execution order when running multiple task sets targeting the same or different products.</p>
+  `));
+
+  wrap.appendChild(section("Proxy Format", `
+    <p style="margin:0 0 10px"><strong style="color:var(--text)">Supported Formats</strong></p>
+    <table ${tblStyle}>
+      <tr><th ${thStyle}>Format</th><th ${thStyle}>Example</th></tr>
+      <tr><td ${tdStyle}><code ${codeS}>ip:port</code></td><td ${tdStyle}><code ${codeS}>192.168.1.1:8080</code></td></tr>
+      <tr><td ${tdStyle}><code ${codeS}>ip:port:user:pass</code></td><td ${tdStyle}><code ${codeS}>192.168.1.1:8080:admin:secret</code></td></tr>
+      <tr><td ${tdStyle}><code ${codeS}>user:pass@ip:port</code></td><td ${tdStyle}><code ${codeS}>admin:secret@192.168.1.1:8080</code></td></tr>
+    </table>
+    <p style="margin:10px 0 0;">One proxy per line. Residential or ISP proxies recommended — datacenter proxies are commonly blocked by Shopify.</p>
+  `));
+
+  wrap.appendChild(section("Error Reference", `
+    <p style="margin:0 0 10px"><strong style="color:var(--text)">Auth / Session Errors</strong></p>
+    <table ${tblStyle}>
+      <tr><th ${thStyle}>Error</th><th ${thStyle}>Meaning</th></tr>
+      <tr><td ${tdStyle}><code ${codeS}>Auth token expired</code></td><td ${tdStyle}>Session cookie is stale — regenerate cookies or restart.</td></tr>
+      <tr><td ${tdStyle}><code ${codeS}>Captcha failed</code></td><td ${tdStyle}>Captcha solver returned wrong answer — retries automatically.</td></tr>
+      <tr><td ${tdStyle}><code ${codeS}>Checkpoint detected</code></td><td ${tdStyle}>Site requires captcha before proceeding — use <code ${codeS}>wait</code> mode.</td></tr>
+      <tr><td ${tdStyle}><code ${codeS}>Login failed</code></td><td ${tdStyle}>Bad email/password or account locked — check credentials file.</td></tr>
+    </table>
+
+    <p style="margin:16px 0 10px"><strong style="color:var(--text)">Proxy Errors</strong></p>
+    <table ${tblStyle}>
+      <tr><th ${thStyle}>Error</th><th ${thStyle}>Meaning</th></tr>
+      <tr><td ${tdStyle}><code ${codeS}>Proxy timeout</code></td><td ${tdStyle}>Proxy didn't respond in time — try different proxy or provider.</td></tr>
+      <tr><td ${tdStyle}><code ${codeS}>Proxy auth failed</code></td><td ${tdStyle}>Wrong username/password for the proxy.</td></tr>
+      <tr><td ${tdStyle}><code ${codeS}>Proxy banned</code></td><td ${tdStyle}>IP is blocked by the store — rotate proxies.</td></tr>
+      <tr><td ${tdStyle}><code ${codeS}>ECONNREFUSED</code></td><td ${tdStyle}>Proxy server is down or unreachable.</td></tr>
+    </table>
+
+    <p style="margin:16px 0 10px"><strong style="color:var(--text)">Task Errors</strong></p>
+    <table ${tblStyle}>
+      <tr><th ${thStyle}>Error</th><th ${thStyle}>Meaning</th></tr>
+      <tr><td ${tdStyle}><code ${codeS}>Product not found</code></td><td ${tdStyle}>Keywords didn't match anything in the first 25 products. Use variant ID.</td></tr>
+      <tr><td ${tdStyle}><code ${codeS}>Size not found</code></td><td ${tdStyle}>Requested size isn't available for this product. Check size labels exactly.</td></tr>
+      <tr><td ${tdStyle}><code ${codeS}>Out of stock</code></td><td ${tdStyle}>Variant is sold out — task will retry if in stuck mode.</td></tr>
+      <tr><td ${tdStyle}><code ${codeS}>Cart empty</code></td><td ${tdStyle}>Item was removed from cart between carting and checkout.</td></tr>
+    </table>
+
+    <p style="margin:16px 0 10px"><strong style="color:var(--text)">Order / Checkout Errors</strong></p>
+    <table ${tblStyle}>
+      <tr><th ${thStyle}>Error</th><th ${thStyle}>Meaning</th></tr>
+      <tr><td ${tdStyle}><code ${codeS}>Card declined</code></td><td ${tdStyle}>Payment processor rejected the card. Try a different card or profile.</td></tr>
+      <tr><td ${tdStyle}><code ${codeS}>Rate limited</code></td><td ${tdStyle}>Too many checkout attempts — back off or use fewer tasks per site.</td></tr>
+      <tr><td ${tdStyle}><code ${codeS}>Queue detected</code></td><td ${tdStyle}>Site has a waiting room — use <code ${codeS}>stuck</code> mode to sit in queue.</td></tr>
+      <tr><td ${tdStyle}><code ${codeS}>Checkout blocked</code></td><td ${tdStyle}>Store flagged the session — rotate proxy + regenerate cookies.</td></tr>
+    </table>
+  `));
+
+  wrap.appendChild(section("Troubleshooting", `
+    <p style="margin:0 0 10px"><strong style="color:var(--text)">General Checklist</strong></p>
+    <ol style="margin:0;padding-left:18px;line-height:1.8;">
+      <li>Check the <strong>error log</strong> in the Engine tab for the exact error message.</li>
+      <li>Verify your <strong>profiles</strong> have no empty fields and use correct country/state codes.</li>
+      <li>Make sure <strong>proxies</strong> are alive — test them with a proxy checker first.</li>
+      <li>If using <strong>keywords</strong>, confirm the product is within the 25-item detection limit.</li>
+      <li>For <strong>restocks</strong>, make sure you're using a <code ${codeS}>stuck</code> mode variant.</li>
+      <li>If checkouts keep failing, try <strong>regenerating cookies</strong> via the Pre-cookie tab.</li>
+      <li>Rotate between <strong>ISP and residential</strong> proxies — DCs get banned fastest.</li>
+    </ol>
+
+    <p style="margin:16px 0 10px"><strong style="color:var(--text)">Engine Won't Start</strong></p>
+    <ul style="margin:0;padding-left:18px;">
+      <li>Make sure <code ${codeS}>make-engine.exe</code> path is set in Settings.</li>
+      <li>Check that no other instance is already running (check Task Manager).</li>
+      <li>Run as administrator if file-access errors appear.</li>
+    </ul>
+
+    <p style="margin:16px 0 10px"><strong style="color:var(--text)">Webhook Not Receiving Checkouts</strong></p>
+    <ul style="margin:0;padding-left:18px;">
+      <li>Confirm the webhook URL is set in Settings and points to a valid Discord webhook.</li>
+      <li>Check that the bot token is entered if using Discord bot-based routing.</li>
+      <li>Firewall or antivirus may block the local webhook listener — whitelist MakeBot+.</li>
+    </ul>
+  `));
+
+  wrap.appendChild(section("Keyboard Shortcuts", `
+    <table ${tblStyle}>
+      <tr><th ${thStyle}>Shortcut</th><th ${thStyle}>Action</th></tr>
+      <tr><td ${tdStyle}><kbd style="background:var(--raised);padding:2px 7px;border-radius:4px;font-size:12px;border:1px solid var(--border);">Ctrl+Shift+S</kbd></td><td ${tdStyle}>Start / stop engine</td></tr>
+      <tr><td ${tdStyle}><kbd style="background:var(--raised);padding:2px 7px;border-radius:4px;font-size:12px;border:1px solid var(--border);">Ctrl+Shift+D</kbd></td><td ${tdStyle}>Open DevTools</td></tr>
+    </table>
+  `));
+
+  /* ── search filtering ── */
+  search.oninput = () => {
+    const q = search.value.toLowerCase().trim();
+    wrap.querySelectorAll("details.help-section").forEach(d => {
+      const match = !q || d.textContent.toLowerCase().includes(q);
+      d.style.display = match ? "" : "none";
+      if (q && match) d.open = true;
+    });
+  };
+
+  p.appendChild(wrap);
 }
 
 // ── CHANGELOG ────────────────────────────────────────────────────────────────
