@@ -605,6 +605,21 @@ const S = {
   coUnseen: 0,
 };
 
+// ── Checkout notification sound ──────────────────────────────────────────────
+const coSound = new Audio("success.mp3");
+coSound.volume = 0.6;
+let soundEnabled = true;
+let soundCustomPath = null;
+api.sound.getConfig().then(sc => {
+  soundEnabled = sc.enabled;
+  if (sc.custom) { soundCustomPath = sc.custom; coSound.src = "file://" + sc.custom; }
+});
+function playCheckoutSound() {
+  if (!soundEnabled) return;
+  coSound.currentTime = 0;
+  coSound.play().catch(() => {});
+}
+
 const uid    = () => Math.random().toString(36).slice(2,8);
 const nowStr = () => new Date().toLocaleTimeString("en-US",{hour12:false});
 const esc    = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
@@ -1041,7 +1056,10 @@ api.checkouts.onNew(co => {
     refreshCoStats();
   }
   if (S.tab === "dashboard") renderTab("dashboard");
-  if (co.status === "success") toast(`Checkout: ${co.product || co.site || "success"}`);
+  if (co.status === "success") {
+    toast(`Checkout: ${co.product || co.site || "success"}`);
+    playCheckoutSound();
+  }
 });
 api.checkouts.onUpdated(co => {
   const i = S.checkouts.findIndex(c => c.id === co.id);
@@ -3575,6 +3593,37 @@ function renderSettings(p) {
     mkSwitch(document.body.classList.contains("privacy"), on => { applyPrivacy(on); paintToggles(); })));
   ap.appendChild(ab);
   grid.appendChild(ap);
+
+  // Notifications
+  const nt = mk("div","card");
+  nt.appendChild(mk("div","card-hdr","Notifications"));
+  const nb = mk("div","card-body");
+  const soundLabel = mk("span","mono");
+  soundLabel.textContent = soundCustomPath ? soundCustomPath.split(/[/\\]/).pop() : "success.mp3 (default)";
+  nb.appendChild(setRow("Checkout sound", "Plays when a successful checkout lands",
+    mkSwitch(soundEnabled, on => { soundEnabled = on; api.sound.setEnabled(on); })));
+  nb.appendChild(setRow("Sound file", "",
+    mkBtn("Choose .mp3","sm", async () => {
+      const p2 = await api.sound.pick();
+      if (p2) {
+        soundCustomPath = p2;
+        coSound.src = "file://" + p2;
+        soundLabel.textContent = p2.split(/[/\\]/).pop();
+        toast("Custom sound set");
+      }
+    }),
+    mkBtn("Reset","sm ghost", async () => {
+      await api.sound.reset();
+      soundCustomPath = null;
+      coSound.src = "success.mp3";
+      soundLabel.textContent = "success.mp3 (default)";
+      toast("Sound reset to default");
+    }),
+    mkBtn("▶ Test","sm ghost", () => playCheckoutSound())));
+  $(".set-k", nb.lastChild)?.appendChild(soundLabel);
+  nt.appendChild(nb);
+  grid.appendChild(nt);
+
   p.appendChild(grid);
 
   // Updates

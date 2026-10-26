@@ -469,3 +469,38 @@ ipcMain.handle("config:import", async () => {
 });
 
 ipcMain.handle("app:version", () => app.getVersion());
+
+// ── IPC: notification sound ──────────────────────────────────────────────────
+ipcMain.handle("sound:pick", async () => {
+  const r = await dialog.showOpenDialog(win, {
+    properties: ["openFile"],
+    filters: [{ name: "Audio", extensions: ["mp3","wav","ogg","m4a"] }],
+  });
+  if (r.canceled || !r.filePaths.length) return null;
+  const src = r.filePaths[0];
+  const dest = path.join(app.getPath("userData"), "custom-sound" + path.extname(src));
+  fs.copyFileSync(src, dest);
+  cfg.customSoundPath = dest;
+  saveCfg(cfg);
+  return dest;
+});
+
+ipcMain.handle("sound:getConfig", () => ({
+  enabled: cfg.soundEnabled !== false,
+  custom: cfg.customSoundPath || null,
+}));
+
+ipcMain.handle("sound:setEnabled", (_e, on) => {
+  cfg.soundEnabled = on;
+  saveCfg(cfg);
+});
+
+ipcMain.handle("sound:reset", () => {
+  delete cfg.customSoundPath;
+  const old = path.join(app.getPath("userData"), "custom-sound.mp3");
+  try { fs.unlinkSync(old); } catch {}
+  try { fs.unlinkSync(old.replace(".mp3",".wav")); } catch {}
+  try { fs.unlinkSync(old.replace(".mp3",".ogg")); } catch {}
+  try { fs.unlinkSync(old.replace(".mp3",".m4a")); } catch {}
+  saveCfg(cfg);
+});
