@@ -298,7 +298,12 @@ ipcMain.handle("fetch:ogImage", async (_, url) => {
                    || body.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
           const tw  = body.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i);
           const img = body.match(/<img[^>]+class=["'][^"']*product[^"']*["'][^>]+src=["']([^"']+)["']/i);
-          resolve(og?.[1]||tw?.[1]||img?.[1]||null);
+          let best = og?.[1]||tw?.[1]||img?.[1]||null;
+          // Shopify CDN: strip size suffix to get full-res
+          if (best && /cdn\.shopify\.com/i.test(best)) {
+            best = best.replace(/_(pico|icon|thumb|small|compact|medium|large|grande|\d+x\d*|\d*x\d+)\./i, ".");
+          }
+          resolve(best);
         });
       });
       req.on("error", ()=>resolve(null));

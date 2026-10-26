@@ -502,18 +502,13 @@ select.finput{padding-right:6px}
 .co-status.declined{color:var(--t-error);border-color:color-mix(in srgb,var(--t-error) 45%,transparent)}
 .co-status.other{color:var(--text-dim);border-color:var(--border)}
 .co-btn-row{display:flex;gap:6px;margin-top:5px}
-.co-hover-btn-wrap{position:relative}
 .co-hover-btn{border:1px solid var(--border);background:var(--panel);color:var(--text-dim);font-size:10.5px;font-weight:600;
-  padding:3px 10px;border-radius:5px;cursor:default;letter-spacing:.3px;text-transform:uppercase;transition:all .15s ease}
+  padding:3px 10px;border-radius:5px;cursor:pointer;letter-spacing:.3px;text-transform:uppercase;transition:all .15s ease}
 .co-hover-btn:hover{background:color-mix(in srgb,var(--accent) 14%,var(--panel));color:var(--text);border-color:var(--accent)}
 .co-hover-btn.order-btn:hover{border-color:var(--t-checkout);color:var(--t-checkout);background:color-mix(in srgb,var(--t-checkout) 10%,var(--panel))}
-.co-hover-tip{display:none;position:absolute;left:0;top:calc(100% + 6px);z-index:20;min-width:200px;
-  background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 10px;
-  box-shadow:0 6px 20px rgba(0,0,0,.25);pointer-events:none}
-.co-hover-btn-wrap:hover .co-hover-tip{display:block}
-.co-tip-row{display:flex;justify-content:space-between;gap:12px;padding:2px 0;font-size:11px;line-height:1.5}
-.co-tip-key{color:var(--text-dim);white-space:nowrap;font-weight:500}
-.co-tip-val{color:var(--text);font-family:"Cascadia Mono",Consolas,monospace;font-size:10.5px;text-align:right;word-break:break-all}
+.co-product-link{display:block;margin-top:3px;font-size:10.5px;color:var(--accent);text-decoration:none;cursor:pointer;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.75;transition:opacity .15s}
+.co-product-link:hover{opacity:1;text-decoration:underline}
 /* ── UPDATE BAR ── */
 .update-bar{position:fixed;bottom:0;left:0;right:0;height:38px;display:flex;align-items:center;justify-content:center;gap:10px;
   background:color-mix(in srgb,var(--accent) 14%,var(--bg));border-top:1px solid var(--accent);z-index:900;
@@ -3026,7 +3021,7 @@ function buildCoCard(co) {
   const ff = co.fields || [];
   const fieldVal = pattern => { const f = ff.find(x => pattern.test(x.name)); return f ? f.value : null; };
 
-  // Order button — email, order #, profile, account, proxy
+  // Order button → opens modal
   const orderNum = co.order || fieldVal(/order/i);
   const orderEmail = fieldVal(/email/i);
   const orderProfile = co.profile || fieldVal(/profile/i);
@@ -3034,40 +3029,38 @@ function buildCoCard(co) {
   const orderProxy = co.proxy || fieldVal(/proxy/i);
   const orderPairs = [["Order", orderNum], ["Email", orderEmail], ["Profile", orderProfile], ["Account", orderAccount], ["Proxy", orderProxy]].filter(p => p[1]);
   if (orderPairs.length) {
-    const wrap = mk("div","co-hover-btn-wrap");
     const btn = mk("button","co-hover-btn order-btn","Order");
-    wrap.appendChild(btn);
-    const tip = mk("div","co-hover-tip");
-    orderPairs.forEach(([k, v]) => {
-      const r = mk("div","co-tip-row");
-      r.appendChild(mk("span","co-tip-key", esc(k)));
-      r.appendChild(mk("span", /email|profile|account|proxy/i.test(k) ? "co-tip-val pv" : "co-tip-val", esc(v)));
-      tip.appendChild(r);
-    });
-    wrap.appendChild(tip);
-    btnRow.appendChild(wrap);
+    btn.onclick = e => { e.stopPropagation(); openDetailModal("Order Details", orderPairs, true); };
+    btnRow.appendChild(btn);
   }
 
-  // Setup button — keyword, size, color, mode, quantity, delay
+  // Setup button → opens modal
   const setupPairs = [["Keyword",null],["Size",null],["Color",null],["Mode",null],["Quantity",null],["Delay",null]]
     .map(([k]) => [k, fieldVal(new RegExp(k,"i")) || (k==="Size" ? co.size : k==="Mode" ? co.mode : null)])
     .filter(p => p[1]);
   if (setupPairs.length) {
-    const wrap = mk("div","co-hover-btn-wrap");
     const btn = mk("button","co-hover-btn setup-btn","Setup");
-    wrap.appendChild(btn);
-    const tip = mk("div","co-hover-tip");
-    setupPairs.forEach(([k, v]) => {
-      const r = mk("div","co-tip-row");
-      r.appendChild(mk("span","co-tip-key", esc(k)));
-      r.appendChild(mk("span","co-tip-val", esc(v)));
-      tip.appendChild(r);
-    });
-    wrap.appendChild(tip);
-    btnRow.appendChild(wrap);
+    btn.onclick = e => { e.stopPropagation(); openDetailModal("Setup Details", setupPairs, false); };
+    btnRow.appendChild(btn);
   }
 
   if (btnRow.children.length) body.appendChild(btnRow);
+
+  // Product link with Shopify variant
+  if (co.productUrl) {
+    const link = mk("a","co-product-link");
+    let label = co.site || "";
+    try {
+      const u = new URL(co.productUrl);
+      const variant = u.searchParams.get("variant");
+      label = u.hostname.replace(/^www\./,"");
+      if (variant) label += ` · variant ${variant}`;
+    } catch {}
+    link.textContent = label || co.productUrl;
+    link.title = co.productUrl;
+    link.onclick = e => { e.stopPropagation(); e.preventDefault(); api.shell.open(co.productUrl); };
+    body.appendChild(link);
+  }
 
   const sub = [co.profile, co.account].filter(Boolean);
   if (sub.length) body.appendChild(mk("div","co-sub", sub.map(esc).join(" · ")));
@@ -3076,6 +3069,26 @@ function buildCoCard(co) {
   card.appendChild(body);
   card.onclick = () => openCheckoutModal(co);
   return card;
+}
+
+function openDetailModal(title, pairs, privacyMask) {
+  const ov = mk("div","overlay"), m = mk("div","modal");
+  m.style.width = "420px";
+  m.appendChild(mk("div","modal-title", title));
+  const kv = mk("div","kv");
+  pairs.forEach(([k, v]) => {
+    kv.appendChild(mk("div","k", esc(k)));
+    const cls = privacyMask && /email|profile|account|proxy/i.test(k) ? "v pv" : "v";
+    kv.appendChild(mk("div", cls, esc(v)));
+  });
+  m.appendChild(kv);
+  const act = mk("div","modal-actions");
+  act.appendChild(mk("div","spacer"));
+  act.appendChild(mkBtn("Close","pr sm", () => ov.remove()));
+  m.appendChild(act);
+  ov.appendChild(m);
+  ov.onclick = e => { if (e.target === ov) ov.remove(); };
+  document.body.appendChild(ov);
 }
 
 async function openCheckoutModal(co) {

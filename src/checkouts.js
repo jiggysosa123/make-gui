@@ -112,14 +112,20 @@ function embedToCheckout(embed, payload, meta = {}) {
 
 function hostOf(u) { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } }
 
-// Discord CDN serves tiny thumbnails by default — request a larger size
+// Upscale image URLs from Discord CDN and Shopify CDN to larger sizes
 function upscaleImg(url) {
   if (!url) return "";
   try {
     const u = new URL(url);
+    // Discord CDN: request 400×400
     if (/discord(app)?\.com|media\.discordapp\.net/.test(u.hostname)) {
       u.searchParams.set("width", "400");
       u.searchParams.set("height", "400");
+      return u.toString();
+    }
+    // Shopify CDN: strip size suffix like _small, _compact, _medium, _100x100 → get original
+    if (/cdn\.shopify\.com/.test(u.hostname)) {
+      u.pathname = u.pathname.replace(/_(pico|icon|thumb|small|compact|medium|large|grande|\d+x\d*|\d*x\d+)\./i, ".");
       return u.toString();
     }
   } catch {}
