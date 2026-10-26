@@ -148,16 +148,18 @@ function extractPayload(contentType, body) {
 }
 
 // Same embed seen via relay and via bot → one card
+// Aggressive normalization: strip all whitespace/punctuation so relay vs bot payloads match
+const fpNorm = s => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 function fingerprint(co) {
-  // Normalize: use only parsed fields (not raw embed) so relay vs discord API payloads match
   const key = [
-    (co.headline || "").toLowerCase().trim(),
-    (co.product  || "").toLowerCase().trim(),
-    (co.order    || "").trim(),
-    (co.site     || "").toLowerCase().trim(),
-    (co.account  || co.profile || "").toLowerCase().trim(),
-    (co.size     || "").toLowerCase().trim(),
-    (co.price    || "").trim(),
+    fpNorm(co.product),
+    fpNorm(co.order),
+    fpNorm(co.site),
+    fpNorm(co.account || co.profile),
+    fpNorm(co.size),
+    fpNorm(co.price),
+    // round timestamp to nearest 2-min window so relay vs bot timestamps merge
+    co.ts ? String(Math.round(co.ts / 120000)) : "",
   ];
   return crypto.createHash("sha1").update(JSON.stringify(key)).digest("hex");
 }
@@ -172,6 +174,7 @@ class CheckoutService extends EventEmitter {
     this.port       = port;
     this.items      = this._load();
     this._dedup();
+    this._upscaleExisting();
     this._mergeRelated();
     this.seen       = new Map(this.items.map(c => [fingerprint(c), c.source]));  // fp → source
     this.relay      = { listening: false, received: 0, forwarded: 0, lastAt: null, lastError: null };
@@ -198,6 +201,17 @@ class CheckoutService extends EventEmitter {
     if (co) { Object.assign(co, patch); this._save(); this.emit("updated", co); }
   }
 
+  // ── upscale: fix old checkouts that stored tiny Discord thumbnail URLs ──────
+  _upscaleExisting() {
+    let changed = false;
+    for (const c of this.items) {
+      if (!c.image) continue;
+      const up = upscaleImg(c.image);
+      if (up !== c.image) { c.image = up; changed = true; }
+    }
+    if (changed) this._save();
+  }
+
   // ── dedup: drop duplicates already in stored data ───────────────────────────
   _dedup() {
     const seen = new Map();
@@ -217,9 +231,10 @@ class CheckoutService extends EventEmitter {
     const remove = new Set();
     for (const c of this.items) {
       if (c.status !== "other") continue;
-      const hl = (c.headline || "").toLowerCase();
-      const isOrder = /order/i.test(hl);
-      const isSetup = /setup|init/i.test(hl);
+      // check headline, product, AND field names/values for ORDER/SETUP keywords
+      const text = [c.headline, c.product, ...(c.fields || []).map(f => `${f.name} ${f.value}`)].join(" ");
+      const isOrder = /order/i.test(text);
+      const isSetup = /setup|init/i.test(text);
       if (!isOrder && !isSetup) continue;
 
       // match by order number
