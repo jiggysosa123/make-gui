@@ -43,17 +43,6 @@
       "owner": "jiggysosa123",
       "repo": "make-gui"
     },
-    "extraResources": [
-      {
-        "from": "engine/",
-        "to": "engine/",
-        "filter": [
-          "*.exe",
-          "*.dll",
-          "README.md"
-        ]
-      }
-    ],
     "files": [
       "src/**/*",
       "public/**/*"
