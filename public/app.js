@@ -665,6 +665,7 @@ const ICON = {
   accounts:  '<circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M15 8l2 2"/>',
   precookie: '<path d="M12 3a9 9 0 1 0 9 9 4 4 0 0 1-4-4 4 4 0 0 1-5-5Z"/><circle cx="9" cy="13" r="1"/><circle cx="14" cy="16" r="1"/><circle cx="8" cy="9" r="1"/>',
   taskgroups:'<path d="M4 7h3M4 12h3M4 17h3"/><rect x="10" y="5" width="10" height="4" rx="1"/><rect x="10" y="10" width="10" height="4" rx="1"/><rect x="10" y="15" width="10" height="4" rx="1"/>',
+  changelog: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M16 13H8M16 17H8M10 9H8"/>',
   settings:  '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/>',
   eye:       '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
   eyeOff:    '<path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6A17 17 0 0 0 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
@@ -677,9 +678,9 @@ const NAV = [
   { sec: "Run",       items: [["dashboard","Dashboard"],["checkouts","Checkouts"],["taskgroups","Task Groups"],["engine","Engine"]] },
   { sec: "Configure", items: [["tasks","Tasks"],["profiles","Profiles"],["proxies","Proxies"],["accounts","Accounts"],["precookie","Pre-cookie"]] },
 ];
-const TABS = ["dashboard","checkouts","taskgroups","engine","tasks","profiles","proxies","accounts","precookie","settings"];
+const TABS = ["dashboard","checkouts","taskgroups","engine","tasks","profiles","proxies","accounts","precookie","changelog","settings"];
 const TITLES = { dashboard:"Dashboard", checkouts:"Checkouts", taskgroups:"Task Groups", engine:"Engine", tasks:"Tasks", profiles:"Profiles",
-                 proxies:"Proxies", accounts:"Accounts", precookie:"Pre-cookie", settings:"Settings" };
+                 proxies:"Proxies", accounts:"Accounts", precookie:"Pre-cookie", changelog:"Changelog", settings:"Settings" };
 
 // sidebar
 const side = mk("aside","side");
@@ -767,6 +768,7 @@ NAV.forEach(({ sec, items }) => {
 })();
 side.appendChild(nav);
 const foot = mk("div","side-foot");
+foot.appendChild(navItem("changelog","Changelog"));
 foot.appendChild(navItem("settings","Settings"));
 const engCard = mk("div","eng-card");
 engCard.innerHTML = `
@@ -3456,8 +3458,70 @@ function renderTab(t) {
   else if (t==="precookie")renderTextTab(p,{ stateKey:"precookies",folder:"precookie", ext:".txt", hint:"Accounts needing pre-cookie: email:password", ph:"user@example.com:password123", tabLabel:"precookie" });
   else if (t==="accounts") renderTextTab(p,{ stateKey:"accounts",  folder:"account",   ext:".txt", hint:"email:password — one per line", ph:"user@gmail.com:password123", tabLabel:"accounts" });
   else if (t==="engine")   renderEngine(p);
+  else if (t==="changelog") renderChangelog(p);
   else if (t==="settings") renderSettings(p);
   setHeader(t);
+}
+
+// ── CHANGELOG ────────────────────────────────────────────────────────────────
+function renderChangelog(p) {
+  const wrap = mk("div","changelog-wrap");
+  wrap.style.cssText = "max-width:680px;margin:0 auto";
+
+  const entries = [
+    {
+      ver: "1.0.0", date: "2026-10-26", title: "Initial Release",
+      items: [
+        "Full Electron desktop wrapper for make-engine.exe",
+        "Dashboard with live checkout feed and engine stats",
+        "Task group management with scheduling and cron support",
+        "Profile, proxy, account, and pre-cookie file editors",
+        "Discord webhook capture and relay for checkout monitoring",
+        "Checkout history with search, filters, CSV export, and image backfill",
+        "Auto-updater via GitHub Releases",
+        "Light / dark theme toggle and privacy blur mode",
+        "WebSocket server for external integrations",
+        "Config backup & restore (zip export/import)",
+      ],
+    },
+  ];
+
+  entries.forEach((e, i) => {
+    const card = mk("div","card");
+    card.style.cssText = i > 0 ? "margin-top:12px" : "";
+    const hdr = mk("div","card-hdr");
+    hdr.style.cssText = "display:flex;align-items:center;gap:10px";
+    const badge = mk("span",""); badge.textContent = `v${e.ver}`;
+    badge.style.cssText = "background:var(--accent);color:#fff;padding:2px 10px;border-radius:10px;font-size:12px;font-weight:600";
+    const dateSpan = mk("span","mono"); dateSpan.textContent = e.date;
+    dateSpan.style.cssText = "font-size:12px;opacity:.55";
+    const titleSpan = mk("span",""); titleSpan.textContent = e.title;
+    titleSpan.style.cssText = "font-weight:600;font-size:14px";
+    hdr.appendChild(badge); hdr.appendChild(titleSpan); hdr.appendChild(dateSpan);
+    card.appendChild(hdr);
+    const body = mk("div","card-body");
+    const ul = document.createElement("ul");
+    ul.style.cssText = "margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px";
+    e.items.forEach(txt => {
+      const li = document.createElement("li");
+      li.textContent = txt;
+      li.style.cssText = "font-size:13px;line-height:1.5;color:var(--fg2)";
+      ul.appendChild(li);
+    });
+    body.appendChild(ul);
+    card.appendChild(body);
+    wrap.appendChild(card);
+  });
+
+  // version footer
+  api.app.version().then(v => {
+    const foot = mk("div","");
+    foot.style.cssText = "text-align:center;margin-top:16px;font-size:12px;opacity:.4";
+    foot.textContent = `MakeBot+ Console v${v}`;
+    wrap.appendChild(foot);
+  });
+
+  p.appendChild(wrap);
 }
 
 // ── SETTINGS (existing controls, gathered in one place) ───────────────────────
@@ -3522,7 +3586,12 @@ function renderSettings(p) {
   else if (updateState.state === "checking") updStatus.textContent = "Checking for updates…";
   else if (updateState.state === "downloading") updStatus.textContent = `Downloading v${updateState.version || ""}… ${updateState.percent||0}%`;
   else if (updateState.state === "ready")    updStatus.textContent = `v${updateState.version} ready — restart to apply`;
-  else if (updateState.state === "error")    updStatus.textContent = updateState.error || "Update check failed";
+  else if (updateState.state === "error") {
+    const msg = updateState.error || "Update check failed";
+    updStatus.textContent = msg.includes("HttpError") || msg.includes("404") || msg.length > 80
+      ? "Update check failed — is the repo public and a release published?"
+      : msg;
+  }
   else updStatus.textContent = "Auto-updater inactive (dev mode)";
   const checkBtn = mkBtn("Check for updates","sm", () => { if (api.updater) { api.updater.check(); toast("Checking…"); } });
   ub.appendChild(setRow("Auto-update", "MakeBot+ checks GitHub for new releases on launch", checkBtn));
@@ -3533,12 +3602,37 @@ function renderSettings(p) {
   upd.appendChild(ub);
   grid.appendChild(upd);
 
+  // Backup & Restore
+  const bk = mk("div","card");
+  bk.appendChild(mk("div","card-hdr","Backup & Restore"));
+  const bkb = mk("div","card-body");
+  bkb.appendChild(setRow("Export config", "Zips engine data + app settings into a single backup file",
+    mkBtn("Export .zip","sm", async () => {
+      const r = await api.config.export();
+      if (r.ok) toast("Backup saved to " + r.path);
+    })));
+  bkb.appendChild(setRow("Import config", "Restores a previously exported backup (engine restarts recommended)",
+    mkBtn("Import .zip","sm", async () => {
+      const r = await api.config.import();
+      if (r.ok) toast("Config restored — restart the engine to apply");
+    })));
+  bk.appendChild(bkb);
+  grid.appendChild(bk);
+
   // Webhook capture (same panel that used to sit on the Checkouts tab)
   const panel = mk("div","card"); panel.id = "wh-panel";
   panel.appendChild(mk("div","card-hdr","Webhook capture"));
   panel.appendChild(mk("div","card-body"));
   fillWebhookPanel(panel);
   p.appendChild(panel);
+
+  // Version footer
+  api.app.version().then(v => {
+    const vf = mk("div","");
+    vf.style.cssText = "text-align:center;margin-top:16px;font-size:12px;opacity:.4";
+    vf.textContent = `MakeBot+ Console v${v}`;
+    p.appendChild(vf);
+  });
 }
 
 // ── FS INIT ───────────────────────────────────────────────────────────────────

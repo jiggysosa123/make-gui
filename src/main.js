@@ -1,6 +1,8 @@
 const { app, BrowserWindow, ipcMain, dialog, shell, clipboard } = require("electron");
 const path     = require("path");
 const fs       = require("fs");
+const archiver = require("archiver");
+const unzipper = require("unzipper");
 const Engine   = require("./engine");
 const MakeBotWS = require("./wsserver");
 const { TaskTracker } = require("./logparse");
@@ -396,3 +398,74 @@ ipcMain.handle("schedule:remove", (_, id) => { scheduler.remove(id); return { ok
 ipcMain.handle("schedule:toggle", (_, id) => { scheduler.toggle(id); return { ok:true }; });
 ipcMain.handle("schedule:runNow",  (_, group) => { scheduler.runNow(group, "run now"); return { ok:true }; });
 ipcMain.handle("schedule:stopNow", (_, group) => { scheduler.stopNow(group, "stop now"); return { ok:true }; });
+
+// ── IPC: config export/import ────────────────────────────────────────────────
+ipcMain.handle("config:export", async () => {
+  const r = await dialog.showSaveDialog(win, {
+    defaultPath: `makebot-backup-${new Date().toISOString().slice(0,10)}.zip`,
+    filters: [{ name: "ZIP Archive", extensions: ["zip"] }],
+  });
+  if (r.canceled || !r.filePath) return { ok: false };
+
+  const dir = dataDir();
+  const output = fs.createWriteStream(r.filePath);
+  const archive = archiver("zip", { zlib: { level: 9 } });
+  archive.pipe(output);
+
+  // add all subfolders (task, proxy, profile, account, precookie, etc.)
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  for (const e of entries) {
+    const full = path.join(dir, e.name);
+    if (e.isDirectory()) {
+      archive.directory(full, e.name);
+    } else if (e.isFile() && !/\.(exe|dll)$/i.test(e.name)) {
+      // include loose config files (json, txt, etc.) but skip binaries
+      archive.file(full, { name: e.name });
+    }
+  }
+  // also include app-level config
+  const appCfg = path.join(app.getPath("userData"), "config.json");
+  if (fs.existsSync(appCfg)) archive.file(appCfg, { name: "_app_config.json" });
+  const coDB = path.join(app.getPath("userData"), "checkouts.json");
+  if (fs.existsSync(coDB)) archive.file(coDB, { name: "_checkouts.json" });
+  const schDB = path.join(app.getPath("userData"), "schedules.json");
+  if (fs.existsSync(schDB)) archive.file(schDB, { name: "_schedules.json" });
+
+  await archive.finalize();
+  await new Promise(resolve => output.on("close", resolve));
+  return { ok: true, path: r.filePath };
+});
+
+ipcMain.handle("config:import", async () => {
+  const r = await dialog.showOpenDialog(win, {
+    properties: ["openFile"],
+    filters: [{ name: "ZIP Archive", extensions: ["zip"] }],
+  });
+  if (r.canceled || !r.filePaths.length) return { ok: false };
+
+  const zipPath = r.filePaths[0];
+  const dir = dataDir();
+  const userData = app.getPath("userData");
+
+  const directory = await unzipper.Open.file(zipPath);
+  for (const entry of directory.files) {
+    if (entry.type === "Directory") continue;
+    // app-level files go to userData
+    let dest;
+    if (entry.path === "_app_config.json") dest = path.join(userData, "config.json");
+    else if (entry.path === "_checkouts.json") dest = path.join(userData, "checkouts.json");
+    else if (entry.path === "_schedules.json") dest = path.join(userData, "schedules.json");
+    else dest = path.join(dir, entry.path);
+
+    const destDir = path.dirname(dest);
+    if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
+    const content = await entry.buffer();
+    fs.writeFileSync(dest, content);
+  }
+
+  // reload config in memory
+  cfg = JSON.parse(fs.readFileSync(path.join(userData, "config.json"), "utf8") || "{}");
+  return { ok: true };
+});
+
+ipcMain.handle("app:version", () => app.getVersion());
