@@ -501,14 +501,19 @@ select.finput{padding-right:6px}
 .co-status.success{color:var(--t-success);border-color:color-mix(in srgb,var(--t-success) 45%,transparent)}
 .co-status.declined{color:var(--t-error);border-color:color-mix(in srgb,var(--t-error) 45%,transparent)}
 .co-status.other{color:var(--text-dim);border-color:var(--border)}
-.co-detail-row{display:flex;align-items:baseline;gap:8px;margin-top:4px;font-size:11.5px;line-height:1.4}
-.co-detail-label{color:var(--text-dim);font-weight:600;white-space:nowrap;min-width:38px}
-.co-detail-value{color:var(--text);font-family:"Cascadia Mono",Consolas,monospace;font-size:11px}
-.co-setup-row{flex-wrap:wrap}
-.co-setup-vals{display:flex;flex-wrap:wrap;gap:4px 10px}
-.co-setup-tag{display:inline-flex;gap:3px;align-items:baseline}
-.co-setup-key{color:var(--text-dim);font-size:10px;text-transform:uppercase;letter-spacing:.3px}
-.co-setup-val{color:var(--text);font-family:"Cascadia Mono",Consolas,monospace;font-size:11px}
+.co-btn-row{display:flex;gap:6px;margin-top:5px}
+.co-hover-btn-wrap{position:relative}
+.co-hover-btn{border:1px solid var(--border);background:var(--panel);color:var(--text-dim);font-size:10.5px;font-weight:600;
+  padding:3px 10px;border-radius:5px;cursor:default;letter-spacing:.3px;text-transform:uppercase;transition:all .15s ease}
+.co-hover-btn:hover{background:color-mix(in srgb,var(--accent) 14%,var(--panel));color:var(--text);border-color:var(--accent)}
+.co-hover-btn.order-btn:hover{border-color:var(--t-checkout);color:var(--t-checkout);background:color-mix(in srgb,var(--t-checkout) 10%,var(--panel))}
+.co-hover-tip{display:none;position:absolute;left:0;top:calc(100% + 6px);z-index:20;min-width:200px;
+  background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 10px;
+  box-shadow:0 6px 20px rgba(0,0,0,.25);pointer-events:none}
+.co-hover-btn-wrap:hover .co-hover-tip{display:block}
+.co-tip-row{display:flex;justify-content:space-between;gap:12px;padding:2px 0;font-size:11px;line-height:1.5}
+.co-tip-key{color:var(--text-dim);white-space:nowrap;font-weight:500}
+.co-tip-val{color:var(--text);font-family:"Cascadia Mono",Consolas,monospace;font-size:10.5px;text-align:right;word-break:break-all}
 /* ── UPDATE BAR ── */
 .update-bar{position:fixed;bottom:0;left:0;right:0;height:38px;display:flex;align-items:center;justify-content:center;gap:10px;
   background:color-mix(in srgb,var(--accent) 14%,var(--bg));border-top:1px solid var(--accent);z-index:900;
@@ -3016,38 +3021,53 @@ function buildCoCard(co) {
   if (co.site) body.appendChild(mk("div","co-site", esc(co.site)));
   body.appendChild(mk("div","co-product", esc(co.product || co.headline || "Unknown product")));
 
-  // Order # row
-  const orderNum = co.order || (co.fields||[]).find(f => /order/i.test(f.name))?.value;
-  if (orderNum) {
-    const oRow = mk("div","co-detail-row");
-    oRow.appendChild(mk("span","co-detail-label","Order"));
-    oRow.appendChild(mk("span","co-detail-value", esc(orderNum.startsWith("#") ? orderNum : `#${orderNum}`)));
-    body.appendChild(oRow);
-  }
+  // — detail buttons row (Order + Setup) —
+  const btnRow = mk("div","co-btn-row");
+  const ff = co.fields || [];
+  const fieldVal = pattern => { const f = ff.find(x => pattern.test(x.name)); return f ? f.value : null; };
 
-  // Setup details row — keyword, size, color, mode, quantity, delay
-  const setupFields = (co.fields||[]).filter(f => /keyword|size|color|mode|quantity|delay/i.test(f.name));
-  if (setupFields.length) {
-    const sRow = mk("div","co-detail-row co-setup-row");
-    sRow.appendChild(mk("span","co-detail-label","Setup"));
-    const vals = mk("span","co-detail-value co-setup-vals");
-    setupFields.forEach(f => {
-      const tag = mk("span","co-setup-tag");
-      tag.appendChild(mk("span","co-setup-key", esc(f.name)));
-      tag.appendChild(document.createTextNode(" "));
-      tag.appendChild(mk("span","co-setup-val", esc(f.value)));
-      vals.appendChild(tag);
+  // Order button — email, order #, profile, account, proxy
+  const orderNum = co.order || fieldVal(/order/i);
+  const orderEmail = fieldVal(/email/i);
+  const orderProfile = co.profile || fieldVal(/profile/i);
+  const orderAccount = co.account || fieldVal(/account/i);
+  const orderProxy = co.proxy || fieldVal(/proxy/i);
+  const orderPairs = [["Order", orderNum], ["Email", orderEmail], ["Profile", orderProfile], ["Account", orderAccount], ["Proxy", orderProxy]].filter(p => p[1]);
+  if (orderPairs.length) {
+    const wrap = mk("div","co-hover-btn-wrap");
+    const btn = mk("button","co-hover-btn order-btn","Order");
+    wrap.appendChild(btn);
+    const tip = mk("div","co-hover-tip");
+    orderPairs.forEach(([k, v]) => {
+      const r = mk("div","co-tip-row");
+      r.appendChild(mk("span","co-tip-key", esc(k)));
+      r.appendChild(mk("span", /email|profile|account|proxy/i.test(k) ? "co-tip-val pv" : "co-tip-val", esc(v)));
+      tip.appendChild(r);
     });
-    sRow.appendChild(vals);
-    body.appendChild(sRow);
+    wrap.appendChild(tip);
+    btnRow.appendChild(wrap);
   }
 
-  const meta = mk("div","co-meta");
-  const pill = (text, cls="") => { if (text) meta.appendChild(mk("span",`co-pill ${cls}`, esc(text))); };
-  if (co.size && !/default title/i.test(co.size)) pill(co.size, "size");
-  pill(co.color);
-  if (co.qty && co.qty !== "1") pill(`×${co.qty}`);
-  body.appendChild(meta);
+  // Setup button — keyword, size, color, mode, quantity, delay
+  const setupPairs = [["Keyword",null],["Size",null],["Color",null],["Mode",null],["Quantity",null],["Delay",null]]
+    .map(([k]) => [k, fieldVal(new RegExp(k,"i")) || (k==="Size" ? co.size : k==="Mode" ? co.mode : null)])
+    .filter(p => p[1]);
+  if (setupPairs.length) {
+    const wrap = mk("div","co-hover-btn-wrap");
+    const btn = mk("button","co-hover-btn setup-btn","Setup");
+    wrap.appendChild(btn);
+    const tip = mk("div","co-hover-tip");
+    setupPairs.forEach(([k, v]) => {
+      const r = mk("div","co-tip-row");
+      r.appendChild(mk("span","co-tip-key", esc(k)));
+      r.appendChild(mk("span","co-tip-val", esc(v)));
+      tip.appendChild(r);
+    });
+    wrap.appendChild(tip);
+    btnRow.appendChild(wrap);
+  }
+
+  if (btnRow.children.length) body.appendChild(btnRow);
 
   const sub = [co.profile, co.account].filter(Boolean);
   if (sub.length) body.appendChild(mk("div","co-sub", sub.map(esc).join(" · ")));
