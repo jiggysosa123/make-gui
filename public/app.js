@@ -72,7 +72,7 @@ button,input,select,textarea{font-family:inherit}
 .app{display:grid;grid-template-columns:224px 1fr;height:100vh}
 .side{background:var(--side);border-right:1px solid var(--border);display:flex;flex-direction:column;min-height:0}
 .brand{display:flex;align-items:center;gap:10px;padding:16px 18px 18px;-webkit-app-region:drag}
-.brand svg{width:26px;height:26px;flex-shrink:0}
+.brand svg,.brand img{width:26px;height:26px;flex-shrink:0}
 .brand-name{font-size:13px;font-weight:650;line-height:1.15}
 .brand-sub{font-size:11px;color:var(--text-muted)}
 .nav{flex:1;overflow-y:auto;padding:0 10px}
@@ -685,8 +685,7 @@ const TITLES = { dashboard:"Dashboard", checkouts:"Checkouts", taskgroups:"Task 
 const side = mk("aside","side");
 side.innerHTML = `
   <div class="brand">
-    <svg viewBox="0 0 32 32"><path d="M16 3 29 27H3Z" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linejoin="round"/>
-      <path d="M16 12 22.5 24h-13Z" fill="var(--accent)" opacity=".35"/></svg>
+    <img src="logo.png" style="width:28px;height:28px;" draggable="false" />
     <div><div class="brand-name">MakeBot+</div><div class="brand-sub">Console</div></div>
   </div>`;
 const nav = mk("nav","nav");
