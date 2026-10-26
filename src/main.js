@@ -76,7 +76,6 @@ checkouts.on("checkout", co => {
   const lite = { ...co, raw: undefined };
   win?.webContents.send("checkouts:new", lite);
   wss.broadcastCheckout(lite);
-  pushLog(`[Checkout] ${co.status.toUpperCase()} — ${co.product || co.headline || "?"}${co.price ? " · " + co.price : ""}${co.order ? " · #" + co.order : ""}`, co.status === "success" ? "success" : co.status === "declined" ? "fail" : "info");
 });
 checkouts.on("updated", co => win?.webContents.send("checkouts:updated", { ...co, raw: undefined }));
 checkouts.on("status",  () => win?.webContents.send("webhook:status", webhookInfo()));
