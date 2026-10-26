@@ -1004,10 +1004,6 @@ function coMatches(co) {
   if (f.status !== "all" && co.status !== f.status) return false;
   if (f.range === "today" && co.ts < startOfToday()) return false;
   if (f.range === "7d"    && co.ts < Date.now() - 7*864e5) return false;
-  if (f.q) {
-    const hay = [co.product,co.site,co.size,co.order,co.profile,co.account,co.headline].join(" ").toLowerCase();
-    if (!f.q.toLowerCase().split(/\s+/).every(w => hay.includes(w))) return false;
-  }
   return true;
 }
 
@@ -2993,14 +2989,15 @@ function buildCoCard(co) {
   imgWrap.appendChild(mk("span",`co-status ${co.status}`, co.status==="other" ? esc(co.headline||"webhook").slice(0,22) : co.status));
 
   // order badge — top-left of product image
-  if (co.order || co.hasOrder) {
+  const hasOrder = co.order || co.hasOrder || co.fields?.some(f => /order/i.test(f.name));
+  if (hasOrder) {
     const oBadge = mk("span","co-badge order-badge","#");
     oBadge.title = co.order ? `Order ${co.order}` : "Order confirmed";
     imgWrap.appendChild(oBadge);
   }
 
   // setup badge (top-right gear icon)
-  const hasSetup = co.hasSetup || co.fields?.some(f => /setup|initialized|init/i.test(f.name));
+  const hasSetup = co.hasSetup || co.fields?.some(f => /setup|initialized|init/i.test(f.name) || /setup|initialized|init/i.test(f.value));
   if (hasSetup) {
     const sBadge = mk("span","co-badge setup-badge");
     sBadge.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>`;
@@ -3165,9 +3162,7 @@ function renderCheckouts(p) {
 
   // toolbar
   const tb = mk("div","co-toolbar");
-  const q = mk("input","finput"); q.placeholder="Search product, order #, profile…"; q.style.width="260px"; q.value=S.coFilter.q;
-  q.oninput = () => { S.coFilter.q = q.value; drawGrid(); };
-  tb.appendChild(q);
+  // search removed per LO's request
   const mkSeg = (key, opts) => {
     const seg = mk("div","seg");
     opts.forEach(([v,l]) => {
