@@ -65,6 +65,9 @@ contextBridge.exposeInMainWorld("api", {
   app: {
     version: () => ipcRenderer.invoke("app:version"),
   },
+  releases: {
+    fetch: () => ipcRenderer.invoke("releases:fetch"),
+  },
   sound: {
     getConfig:  () => ipcRenderer.invoke("sound:getConfig"),
     setEnabled: (on) => ipcRenderer.invoke("sound:setEnabled", on),

@@ -3486,71 +3486,64 @@ function renderChangelog(p) {
   const wrap = mk("div","changelog-wrap");
   wrap.style.cssText = "max-width:680px;margin:0 auto";
 
-  const entries = [
-    {
-      ver: "1.1.0", date: "2026-10-26", title: "Quality of Life",
-      items: [
-        "Checkout notification sound on successful hits (configurable in Settings)",
-        "Changelog panel with version history",
-        "Config backup & restore — zip export/import of all engine data and app settings",
-        "Custom app icon and sidebar logo",
-        "Friendly auto-updater error messages instead of raw HTTP dumps",
-        "Version display in Settings and Changelog footer",
-        "Removed unnecessary checkout logging from console window",
-      ],
-    },
-    {
-      ver: "1.0.0", date: "2026-10-25", title: "Initial Release",
-      items: [
-        "Full Electron desktop wrapper for make-engine.exe",
-        "Dashboard with live checkout feed and engine stats",
-        "Task group management with scheduling and cron support",
-        "Profile, proxy, account, and pre-cookie file editors",
-        "Discord webhook capture and relay for checkout monitoring",
-        "Checkout history with search, filters, CSV export, and image backfill",
-        "Auto-updater via GitHub Releases",
-        "Light / dark theme toggle and privacy blur mode",
-        "WebSocket server for external integrations",
-      ],
-    },
-  ];
-
-  entries.forEach((e, i) => {
-    const card = mk("div","card");
-    card.style.cssText = i > 0 ? "margin-top:12px" : "";
-    const hdr = mk("div","card-hdr");
-    hdr.style.cssText = "display:flex;align-items:center;gap:10px";
-    const badge = mk("span",""); badge.textContent = `v${e.ver}`;
-    badge.style.cssText = "background:var(--accent);color:#fff;padding:2px 10px;border-radius:10px;font-size:12px;font-weight:600";
-    const dateSpan = mk("span","mono"); dateSpan.textContent = e.date;
-    dateSpan.style.cssText = "font-size:12px;opacity:.55";
-    const titleSpan = mk("span",""); titleSpan.textContent = e.title;
-    titleSpan.style.cssText = "font-weight:600;font-size:14px";
-    hdr.appendChild(badge); hdr.appendChild(titleSpan); hdr.appendChild(dateSpan);
-    card.appendChild(hdr);
-    const body = mk("div","card-body");
-    const ul = document.createElement("ul");
-    ul.style.cssText = "margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px";
-    e.items.forEach(txt => {
-      const li = document.createElement("li");
-      li.textContent = txt;
-      li.style.cssText = "font-size:13px;line-height:1.5;color:var(--fg2)";
-      ul.appendChild(li);
-    });
-    body.appendChild(ul);
-    card.appendChild(body);
-    wrap.appendChild(card);
-  });
-
-  // version footer
-  api.app.version().then(v => {
-    const foot = mk("div","");
-    foot.style.cssText = "text-align:center;margin-top:16px;font-size:12px;opacity:.4";
-    foot.textContent = `MakeBot+ Console v${v}`;
-    wrap.appendChild(foot);
-  });
-
+  const loading = mk("div","");
+  loading.style.cssText = "text-align:center;padding:40px 0;opacity:.5;font-size:13px";
+  loading.textContent = "Loading releases…";
+  wrap.appendChild(loading);
   p.appendChild(wrap);
+
+  api.releases.fetch().then(releases => {
+    wrap.removeChild(loading);
+
+    if (!releases || !releases.length) {
+      const empty = mk("div","");
+      empty.style.cssText = "text-align:center;padding:40px 0;opacity:.5;font-size:13px";
+      empty.textContent = "No published releases found";
+      wrap.appendChild(empty);
+      return;
+    }
+
+    releases.forEach((r, i) => {
+      const card = mk("div","card");
+      card.style.cssText = i > 0 ? "margin-top:12px" : "";
+      const hdr = mk("div","card-hdr");
+      hdr.style.cssText = "display:flex;align-items:center;gap:10px";
+      const badge = mk("span",""); badge.textContent = `v${r.ver}`;
+      badge.style.cssText = "background:var(--accent);color:#fff;padding:2px 10px;border-radius:10px;font-size:12px;font-weight:600";
+      const dateSpan = mk("span","mono"); dateSpan.textContent = r.date;
+      dateSpan.style.cssText = "font-size:12px;opacity:.55";
+      const titleSpan = mk("span",""); titleSpan.textContent = r.title;
+      titleSpan.style.cssText = "font-weight:600;font-size:14px";
+      hdr.appendChild(badge); hdr.appendChild(titleSpan); hdr.appendChild(dateSpan);
+      card.appendChild(hdr);
+
+      const body = mk("div","card-body");
+      if (r.body) {
+        // parse markdown-style bullet lines into a list
+        const lines = r.body.split(/\n/).map(l => l.replace(/^[\s]*[-*•]\s*/, "").trim()).filter(l => l);
+        if (lines.length) {
+          const ul = document.createElement("ul");
+          ul.style.cssText = "margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px";
+          lines.forEach(txt => {
+            const li = document.createElement("li");
+            li.textContent = txt;
+            li.style.cssText = "font-size:13px;line-height:1.5;color:var(--fg2)";
+            ul.appendChild(li);
+          });
+          body.appendChild(ul);
+        }
+      }
+      card.appendChild(body);
+      wrap.appendChild(card);
+    });
+
+    api.app.version().then(v => {
+      const foot = mk("div","");
+      foot.style.cssText = "text-align:center;margin-top:16px;font-size:12px;opacity:.4";
+      foot.textContent = `MakeBot+ Console v${v}`;
+      wrap.appendChild(foot);
+    });
+  });
 }
 
 // ── SETTINGS (existing controls, gathered in one place) ───────────────────────
