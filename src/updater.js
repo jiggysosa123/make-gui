@@ -5,6 +5,8 @@
 
 const { autoUpdater } = require("electron-updater");
 const { ipcMain }     = require("electron");
+const path            = require("path");
+const fs              = require("fs");
 
 let win = null;
 
@@ -17,6 +19,19 @@ function init(mainWindow) {
 
   // Suppress default error dialogs
   autoUpdater.logger = null;
+
+  // Private repo — read GH_TOKEN from config so updater can authenticate
+  try {
+    const cfgPath = path.join(require("electron").app.getPath("userData"), "config.json");
+    if (fs.existsSync(cfgPath)) {
+      const cfg = JSON.parse(fs.readFileSync(cfgPath, "utf8"));
+      if (cfg.ghToken) {
+        autoUpdater.requestHeaders = { Authorization: `token ${cfg.ghToken}` };
+        process.env.GH_TOKEN = cfg.ghToken;
+      }
+    }
+  } catch {}
+
 
   autoUpdater.on("checking-for-update", () => {
     send("updater:status", { state: "checking" });

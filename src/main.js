@@ -390,6 +390,13 @@ ipcMain.handle("webhook:setBotToken", async (_, token) => {
   return webhookInfo();
 });
 
+ipcMain.handle("config:getGhToken", () => cfg.ghToken || "");
+ipcMain.handle("config:setGhToken", (_, token) => {
+  cfg.ghToken = (token || "").trim() || undefined;
+  saveConfig(cfg);
+  return { ok: true };
+});
+
 // ── IPC: schedules ────────────────────────────────────────────────────────────
 ipcMain.handle("schedule:list",   () => schedulesWithNext());
 ipcMain.handle("schedule:save",   (_, s) => { try { scheduler.save(s); return { ok:true }; } catch (e) { return { ok:false, err:e.message }; } });
