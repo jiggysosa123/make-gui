@@ -65,6 +65,12 @@ contextBridge.exposeInMainWorld("api", {
   app: {
     version: () => ipcRenderer.invoke("app:version"),
   },
+  sound: {
+    getConfig:  () => ipcRenderer.invoke("sound:getConfig"),
+    setEnabled: (on) => ipcRenderer.invoke("sound:setEnabled", on),
+    pick:       () => ipcRenderer.invoke("sound:pick"),
+    reset:      () => ipcRenderer.invoke("sound:reset"),
+  },
   updater: {
     onStatus: (cb) => { const h=(_,d)=>cb(d); ipcRenderer.on("updater:status", h); return ()=>ipcRenderer.off("updater:status", h); },
     check:    ()   => ipcRenderer.invoke("updater:check"),
