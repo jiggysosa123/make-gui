@@ -3043,41 +3043,51 @@ function buildCoCard(co) {
   const btnRow = mk("div","co-btn-row");
   const ff = co.fields || [];
   const normN = s => s.toLowerCase().replace(/[\s_\-#.:]+/g,"");
-  const fieldVal = pattern => { const f = ff.find(x => pattern.test(normN(x.name))); return f ? f.value : null; };
 
-  // Order button → opens modal (pull from co props + webhook fields)
-  const orderPairs = [
-    ["Order #",  co.order   || fieldVal(/order|confirmation|ordernumber|orderid/)],
-    ["Email",    fieldVal(/email|login/) || co.account],
-    ["Profile",  co.profile || fieldVal(/profile/)],
-    ["Account",  fieldVal(/account|group/)],
-    ["Proxy",    co.proxy   || fieldVal(/proxy/)],
-    ["Price",    co.price   || fieldVal(/price|total|cost|amount|subtotal/)],
-    ["Site",     co.site],
-  ].filter(p => p[1]);
+  // Split ALL webhook fields into order-related vs setup-related by field name
+  const orderPattern = /order|confirm|email|login|profile|account|proxy|price|total|cost|amount|subtotal|site|store|shop|domain|payment|card/;
+  const orderFromFields = ff.filter(f => orderPattern.test(normN(f.name))).map(f => [f.name, f.value]);
+  const setupFromFields = ff.filter(f => !orderPattern.test(normN(f.name))).map(f => [f.name, f.value]);
+
+  // Merge extracted co props (from embedToCheckout) with raw webhook fields
+  // co props fill in anything the field-name split missed
+  const orderProps = [
+    co.order   ? ["Order #", co.order]   : null,
+    co.account ? ["Account", co.account] : null,
+    co.profile ? ["Profile", co.profile] : null,
+    co.proxy   ? ["Proxy",   co.proxy]   : null,
+    co.price   ? ["Price",   co.price]   : null,
+    co.site    ? ["Site",    co.site]    : null,
+  ].filter(Boolean);
+  // Dedupe: if a co prop label already matches a webhook field name, skip the prop
+  const orderFieldNames = new Set(orderFromFields.map(([n])=>normN(n)));
+  const orderMerged = [...orderFromFields];
+  orderProps.forEach(([label, val]) => {
+    if (!orderFieldNames.has(normN(label)) && val) orderMerged.push([label, val]);
+  });
+
+  const setupProps = [
+    co.size  ? ["Size",     co.size]  : null,
+    co.color ? ["Color",    co.color] : null,
+    co.mode  ? ["Mode",     co.mode]  : null,
+    co.qty   ? ["Quantity", co.qty]   : null,
+    co.task  ? ["Task",     co.task]  : null,
+  ].filter(Boolean);
+  const setupFieldNames = new Set(setupFromFields.map(([n])=>normN(n)));
+  const setupMerged = [...setupFromFields];
+  setupProps.forEach(([label, val]) => {
+    if (!setupFieldNames.has(normN(label)) && val) setupMerged.push([label, val]);
+  });
+
+  // Filter out empty values and show buttons
+  const orderPairs = orderMerged.filter(p => p[1]);
+  const setupPairs = setupMerged.filter(p => p[1]);
+
   if (orderPairs.length) {
     const btn = mk("button","co-hover-btn order-btn","Order");
     btn.onclick = e => { e.stopPropagation(); openDetailModal("Order Details", orderPairs, true); };
     btnRow.appendChild(btn);
   }
-
-  // Setup button → opens modal (co props first, then fields, then show ALL remaining fields)
-  const setupKnown = [
-    ["Keyword",  fieldVal(/keyword|sku|productid/)],
-    ["Size",     co.size  || fieldVal(/size|variant|option/)],
-    ["Color",    co.color || fieldVal(/color|colour|style/)],
-    ["Mode",     co.mode  || fieldVal(/mode/)],
-    ["Quantity", co.qty   || fieldVal(/quantity|qty/)],
-    ["Delay",    fieldVal(/delay/)],
-    ["Task",     co.task  || fieldVal(/task|taskid/)],
-  ].filter(p => p[1]);
-  // Also include any extra webhook fields not already covered above
-  const usedNames = new Set(["order","email","profile","account","proxy","price","total","cost","site","store",
-    "shop","domain","website","product","item","keyword","sku","size","variant","color","colour","style",
-    "mode","quantity","qty","delay","task","taskid","group","name","title","link","url","amount","subtotal",
-    "ordernumber","orderid","confirmation","login","option","productid","productname"]);
-  const extraFields = ff.filter(f => !usedNames.has(normN(f.name))).map(f => [f.name, f.value]);
-  const setupPairs = [...setupKnown, ...extraFields];
   if (setupPairs.length) {
     const btn = mk("button","co-hover-btn setup-btn","Setup");
     btn.onclick = e => { e.stopPropagation(); openDetailModal("Setup Details", setupPairs, false); };
@@ -3777,12 +3787,9 @@ function renderHelp(p) {
     btn.innerHTML = `<span style="display:flex;align-items:center;gap:8px;">${ch.icon}<span>${ch.title}</span></span>`;
     if (ch.children) btn.innerHTML += '<span style="font-size:9px;margin-left:auto;opacity:.5;">▾</span>';
     btn.style.cssText = "display:flex;align-items:center;justify-content:space-between;width:100%;padding:7px 16px;border:none;background:none;color:var(--text-dim);font-size:13px;font-weight:500;cursor:pointer;text-align:left;border-radius:0;transition:all .12s;border-left:2px solid transparent;";
-    btn.onmouseenter = () => { if (!btn.classList.contains("help-active")) btn.style.background = "var(--raised)"; };
-    btn.onmouseleave = () => { if (!btn.classList.contains("help-active")) btn.style.background = "none"; };
-    btn.onclick = () => {
-      showChapter(ch);
-      btn.style.background = "color-mix(in srgb,var(--accent) 10%,var(--surface))";
-    };
+    btn.onmouseenter = () => { if (!btn.classList.contains("help-active")) btn.classList.add("help-hover"); };
+    btn.onmouseleave = () => btn.classList.remove("help-hover");
+    btn.onclick = () => showChapter(ch);
     item.appendChild(btn);
 
     if (ch.children) {
@@ -3791,11 +3798,10 @@ function renderHelp(p) {
         subBtn.dataset.ch = sub.id;
         subBtn.textContent = sub.title;
         subBtn.style.cssText = "display:block;width:100%;padding:5px 16px 5px 42px;border:none;background:none;color:var(--text-muted);font-size:12px;cursor:pointer;text-align:left;border-radius:0;transition:all .12s;border-left:2px solid transparent;";
-        subBtn.onmouseenter = () => { if (!subBtn.classList.contains("help-active")) subBtn.style.background = "var(--raised)"; };
-        subBtn.onmouseleave = () => { if (!subBtn.classList.contains("help-active")) subBtn.style.background = "none"; };
+        subBtn.onmouseenter = () => { if (!subBtn.classList.contains("help-active")) subBtn.classList.add("help-hover"); };
+        subBtn.onmouseleave = () => subBtn.classList.remove("help-hover");
         subBtn.onclick = () => {
           showChapter(ch);
-          subBtn.style.background = "color-mix(in srgb,var(--accent) 10%,var(--surface))";
           // scroll to the sub-section anchor
           setTimeout(()=>{ const el = content.querySelector("#help-"+sub.id); if (el) el.scrollIntoView({behavior:"smooth",block:"start"}); },50);
           if (activeBtn) activeBtn.classList.remove("help-active");
@@ -3816,6 +3822,7 @@ function renderHelp(p) {
   if (!document.getElementById("help-styles")) {
     const st = document.createElement("style"); st.id = "help-styles";
     st.textContent = `
+      .help-ch-btn.help-hover{background:var(--raised)}
       .help-ch-btn.help-active{background:color-mix(in srgb,var(--accent) 10%,var(--surface))!important;color:var(--text)!important;border-left-color:var(--accent)!important;font-weight:600!important}
       .help-content h2{font-weight:700;letter-spacing:-.01em}
       .help-content h3{font-weight:600}
