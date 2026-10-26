@@ -3488,7 +3488,19 @@ function renderChangelog(p) {
 
   const entries = [
     {
-      ver: "1.0.0", date: "2026-10-26", title: "Initial Release",
+      ver: "1.1.0", date: "2026-10-26", title: "Quality of Life",
+      items: [
+        "Checkout notification sound on successful hits (configurable in Settings)",
+        "Changelog panel with version history",
+        "Config backup & restore — zip export/import of all engine data and app settings",
+        "Custom app icon and sidebar logo",
+        "Friendly auto-updater error messages instead of raw HTTP dumps",
+        "Version display in Settings and Changelog footer",
+        "Removed unnecessary checkout logging from console window",
+      ],
+    },
+    {
+      ver: "1.0.0", date: "2026-10-25", title: "Initial Release",
       items: [
         "Full Electron desktop wrapper for make-engine.exe",
         "Dashboard with live checkout feed and engine stats",
@@ -3499,7 +3511,6 @@ function renderChangelog(p) {
         "Auto-updater via GitHub Releases",
         "Light / dark theme toggle and privacy blur mode",
         "WebSocket server for external integrations",
-        "Config backup & restore (zip export/import)",
       ],
     },
   ];
