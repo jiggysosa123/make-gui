@@ -410,7 +410,7 @@ button,input,select,textarea{font-family:inherit}
 .bt-gen-preview{font-size:13px;font-weight:600}
 
 .co-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px;overflow-y:auto;flex:1;align-content:start}
-.co-card{background:var(--panel);border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;
+.co-card{background:var(--panel);border:1px solid var(--border);border-radius:10px;display:flex;flex-direction:column;
   transition:border-color .15s,box-shadow .15s,transform .15s;position:relative;cursor:pointer}
 .co-card:hover{border-color:var(--border-hi);box-shadow:var(--shadow);transform:translateY(-1px)}
 .co-card.fresh{border-color:var(--accent);animation:flashIn .8s ease}
@@ -508,7 +508,7 @@ select.finput{padding-right:6px}
 .co-hover-btn:hover{background:color-mix(in srgb,var(--accent) 14%,var(--panel));color:var(--text);border-color:var(--accent)}
 .co-hover-btn.order-btn:hover{border-color:var(--t-checkout);color:var(--t-checkout);background:color-mix(in srgb,var(--t-checkout) 10%,var(--panel))}
 .co-product-link{display:block;margin-top:3px;font-size:10.5px;color:var(--accent);text-decoration:none;cursor:pointer;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.75;transition:opacity .15s}
+  word-break:break-all;opacity:.75;transition:opacity .15s}
 .co-product-link:hover{opacity:1;text-decoration:underline}
 /* ── UPDATE BAR ── */
 .update-bar{position:fixed;bottom:0;left:0;right:0;height:38px;display:flex;align-items:center;justify-content:center;gap:10px;
@@ -3042,17 +3042,18 @@ function buildCoCard(co) {
   // — detail buttons row (Order + Setup) —
   const btnRow = mk("div","co-btn-row");
   const ff = co.fields || [];
-  const fieldVal = pattern => { const f = ff.find(x => pattern.test(x.name)); return f ? f.value : null; };
+  const normN = s => s.toLowerCase().replace(/[\s_\-#.:]+/g,"");
+  const fieldVal = pattern => { const f = ff.find(x => pattern.test(normN(x.name))); return f ? f.value : null; };
 
   // Order button → opens modal (pull from co props + webhook fields)
   const orderPairs = [
-    ["Order",   co.order   || fieldVal(/order/i)],
-    ["Email",   fieldVal(/email/i) || co.account],
-    ["Profile", co.profile || fieldVal(/profile/i)],
-    ["Account", fieldVal(/account|group/i)],
-    ["Proxy",   co.proxy   || fieldVal(/proxy/i)],
-    ["Price",   co.price   || fieldVal(/price|total|cost/i)],
-    ["Site",    co.site],
+    ["Order #",  co.order   || fieldVal(/order|confirmation|ordernumber|orderid/)],
+    ["Email",    fieldVal(/email|login/) || co.account],
+    ["Profile",  co.profile || fieldVal(/profile/)],
+    ["Account",  fieldVal(/account|group/)],
+    ["Proxy",    co.proxy   || fieldVal(/proxy/)],
+    ["Price",    co.price   || fieldVal(/price|total|cost|amount|subtotal/)],
+    ["Site",     co.site],
   ].filter(p => p[1]);
   if (orderPairs.length) {
     const btn = mk("button","co-hover-btn order-btn","Order");
@@ -3062,19 +3063,20 @@ function buildCoCard(co) {
 
   // Setup button → opens modal (co props first, then fields, then show ALL remaining fields)
   const setupKnown = [
-    ["Keyword",  fieldVal(/keyword|sku|product.?id/i)],
-    ["Size",     co.size  || fieldVal(/size|variant/i)],
-    ["Color",    co.color || fieldVal(/color|colour|style/i)],
-    ["Mode",     co.mode  || fieldVal(/mode/i)],
-    ["Quantity", co.qty   || fieldVal(/quantity|qty/i)],
-    ["Delay",    fieldVal(/delay/i)],
-    ["Task",     co.task  || fieldVal(/task|taskid/i)],
+    ["Keyword",  fieldVal(/keyword|sku|productid/)],
+    ["Size",     co.size  || fieldVal(/size|variant|option/)],
+    ["Color",    co.color || fieldVal(/color|colour|style/)],
+    ["Mode",     co.mode  || fieldVal(/mode/)],
+    ["Quantity", co.qty   || fieldVal(/quantity|qty/)],
+    ["Delay",    fieldVal(/delay/)],
+    ["Task",     co.task  || fieldVal(/task|taskid/)],
   ].filter(p => p[1]);
   // Also include any extra webhook fields not already covered above
   const usedNames = new Set(["order","email","profile","account","proxy","price","total","cost","site","store",
     "shop","domain","website","product","item","keyword","sku","size","variant","color","colour","style",
-    "mode","quantity","qty","delay","task","taskid","group","name","title","link","url"]);
-  const extraFields = ff.filter(f => !usedNames.has(f.name.toLowerCase().replace(/\s+/g,""))).map(f => [f.name, f.value]);
+    "mode","quantity","qty","delay","task","taskid","group","name","title","link","url","amount","subtotal",
+    "ordernumber","orderid","confirmation","login","option","productid","productname"]);
+  const extraFields = ff.filter(f => !usedNames.has(normN(f.name))).map(f => [f.name, f.value]);
   const setupPairs = [...setupKnown, ...extraFields];
   if (setupPairs.length) {
     const btn = mk("button","co-hover-btn setup-btn","Setup");
@@ -3567,244 +3569,265 @@ function renderTab(t) {
 // ── HELP / FAQ ──────────────────────────────────────────────────────────────
 function renderHelp(p) {
   p.innerHTML = "";
-  const wrap = mk("div","help-wrap");
-  wrap.style.cssText = "max-width:820px;margin:0 auto;padding:24px 0 60px;display:flex;flex-direction:column;gap:20px;";
 
-  /* ── search bar ── */
-  const search = mk("input","finput");
-  search.type = "text"; search.placeholder = "Search help topics…";
-  search.style.cssText = "width:100%;margin-bottom:6px;font-size:14px;";
-  wrap.appendChild(search);
+  /* ── table/code inline style helpers ── */
+  const tS = 'style="width:100%;border-collapse:collapse;margin:10px 0 6px;font-size:12.5px;"';
+  const thS = 'style="text-align:left;padding:7px 10px;border-bottom:2px solid var(--border);color:var(--text);font-weight:600;"';
+  const tdS = 'style="padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:top;"';
+  const cS  = 'style="background:var(--raised);padding:1px 5px;border-radius:4px;font-family:\'Cascadia Mono\',Consolas,monospace;font-size:12px;"';
+  const kbdS = 'style="background:var(--raised);padding:2px 7px;border-radius:4px;font-size:12px;border:1px solid var(--border);font-family:inherit;"';
 
-  /* ── accordion helper ── */
-  function section(title, contentHTML) {
-    const sec = mk("details","help-section");
-    sec.style.cssText = "background:var(--panel);border:1px solid var(--border);border-radius:10px;overflow:hidden;";
-    const sum = mk("summary");
-    sum.style.cssText = "padding:14px 18px;font-weight:600;font-size:14.5px;color:var(--text);cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;user-select:none;";
-    sum.innerHTML = title + '<span style="font-size:11px;color:var(--text-dim);transition:transform .2s">▶</span>';
-    sec.addEventListener("toggle",()=>{ sum.querySelector("span").style.transform = sec.open ? "rotate(90deg)" : ""; });
-    const body = mk("div");
-    body.style.cssText = "padding:0 18px 16px;font-size:13px;line-height:1.65;color:var(--text-dim);";
-    body.innerHTML = contentHTML;
-    sec.appendChild(sum);
-    sec.appendChild(body);
-    return sec;
+  /* ═══ ALL CHAPTERS — id, title, icon, html ═══ */
+  const CHAPTERS = [
+    { id:"modes", title:"Mode", icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>', html:`
+      <h2 style="margin:0 0 16px;font-size:18px;color:var(--text);">Modes &amp; Sub-modes</h2>
+      <h3 style="margin:0 0 8px;font-size:14px;color:var(--text);">Main Modes</h3>
+      <table ${tS}><tr><th ${thS}>Mode</th><th ${thS}>Description</th></tr>
+      <tr><td ${tdS}><code ${cS}>preload</code></td><td ${tdS}>High-speed — data is pre-prepared before drop. The primary mode for most Shopify releases.</td></tr>
+      <tr><td ${tdS}><code ${cS}>direct</code></td><td ${tdS}>No preloading — used for domain changes, site launches, or when product pages aren't up yet.</td></tr></table>
+      <p style="margin:12px 0 6px;font-size:12.5px;color:var(--text-dim);">⚠️ <code ${cS}>safe</code>, <code ${cS}>fast</code>, and <code ${cS}>human</code> are <strong>deprecated</strong> — they still run but are no longer recommended.</p>
+      <div style="margin:12px 0;padding:10px 14px;background:color-mix(in srgb,var(--accent) 8%,var(--surface));border:1px solid color-mix(in srgb,var(--accent) 25%,var(--border));border-radius:8px;font-size:12.5px;color:var(--text-dim);">
+        <strong style="color:var(--text);">Demandware Note:</strong> Only <code ${cS}>fast</code> mode is supported for Demandware sites. Preload and direct modes are Shopify-only.
+      </div>
+
+      <h3 style="margin:20px 0 8px;font-size:14px;color:var(--text);">Sub-modes</h3>
+      <table ${tS}><tr><th ${thS}>Sub-mode</th><th ${thS}>What it does</th></tr>
+      <tr><td ${tdS}><code ${cS}>wait</code></td><td ${tdS}>Waits for a captcha/checkpoint before proceeding.</td></tr>
+      <tr><td ${tdS}><code ${cS}>pause</code></td><td ${tdS}>Pauses the task right before checkout for manual confirmation.</td></tr>
+      <tr><td ${tdS}><code ${cS}>login</code></td><td ${tdS}>Logs into a Shopify account before carting (requires accounts file).</td></tr>
+      <tr><td ${tdS}><code ${cS}>stuck</code></td><td ${tdS}>For restocks — sits in queue instead of retrying the product page.</td></tr>
+      <tr><td ${tdS}><code ${cS}>shoppay</code></td><td ${tdS}>Attempts ShopPay express checkout (requires account + saved card).</td></tr>
+      <tr><td ${tdS}><code ${cS}>lite</code></td><td ${tdS}>Skips checkpoint monitor — relies on another task group to handle it.</td></tr>
+      <tr><td ${tdS}><code ${cS}>store</code></td><td ${tdS}>Stores/saves cookies for reuse on later runs.</td></tr>
+      <tr><td ${tdS}><code ${cS}>free</code></td><td ${tdS}>Skips payment — for 100% discount / free-checkout items.</td></tr>
+      <tr><td ${tdS}><code ${cS}>cod</code></td><td ${tdS}>Cash On Delivery — skips the payment step entirely.</td></tr></table>
+
+      <h3 style="margin:20px 0 8px;font-size:14px;color:var(--text);">Valid Combined Modes</h3>
+      <table ${tS}><tr><th ${thS}>Combined Mode</th><th ${thS}>Behaviour</th></tr>
+      <tr><td ${tdS}><code ${cS}>preload</code></td><td ${tdS}>Standard preload.</td></tr>
+      <tr><td ${tdS}><code ${cS}>preloadwait</code></td><td ${tdS}>Preload + waits for captcha checkpoint.</td></tr>
+      <tr><td ${tdS}><code ${cS}>preloadstuck</code></td><td ${tdS}>Preload for restocks with stuck queue.</td></tr>
+      <tr><td ${tdS}><code ${cS}>preloadstuckwait</code></td><td ${tdS}>Preload + stuck queue + captcha wait.</td></tr>
+      <tr><td ${tdS}><code ${cS}>preloadwaitlite</code></td><td ${tdS}>Preload + captcha wait, no checkpoint monitor.</td></tr>
+      <tr><td ${tdS}><code ${cS}>preloadwaitlitestuck</code></td><td ${tdS}>Preload + wait + lite + stuck queue.</td></tr>
+      <tr><td ${tdS}><code ${cS}>direct</code></td><td ${tdS}>No preload.</td></tr>
+      <tr><td ${tdS}><code ${cS}>wait</code></td><td ${tdS}>Waits for checkpoint captcha.</td></tr>
+      <tr><td ${tdS}><code ${cS}>lite</code></td><td ${tdS}>No checkpoint monitor, relies on other tasks.</td></tr></table>
+
+      <h3 style="margin:20px 0 8px;font-size:14px;color:var(--text);">Recommended Setups</h3>
+      <ul style="margin:0;padding-left:18px;line-height:1.75;font-size:13px;">
+        <li><strong>Restocks / Sitting:</strong> <code ${cS}>preloadstuckwait</code></li>
+        <li><strong>Standard drops:</strong> <code ${cS}>preloadwait</code></li>
+        <li><strong>Multiple groups, one monitor:</strong> Group 1 = <code ${cS}>preloadwait</code>, others = <code ${cS}>preloadwaitlite</code></li>
+        <li><strong>Unknown domain / site launch:</strong> <code ${cS}>direct</code></li>
+      </ul>`},
+
+    { id:"taskgroups", title:"Task Groups", icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 18l2 2 4-4"/><path d="M21 12V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></svg>', html:`
+      <h2 style="margin:0 0 16px;font-size:18px;color:var(--text);">Task Groups</h2>
+      <h3 style="margin:0 0 8px;font-size:14px;color:var(--text);">Group Numbers</h3>
+      <ul style="margin:0;padding-left:18px;line-height:1.75;font-size:13px;">
+        <li>Enter <code ${cS}>1</code> — <strong>all tasks start together</strong>.</li>
+        <li>Enter <code ${cS}>2</code> — <strong>staggered start</strong> — second batch waits for group 1 to begin checkout.</li>
+        <li>Higher numbers create more stagger tiers.</li>
+      </ul>
+      <p style="margin:12px 0 0;font-size:13px;color:var(--text-dim);">Task groups control execution order when running multiple task sets targeting the same or different products.</p>`},
+
+    { id:"site", title:"Site", icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a15 15 0 0 1 4 10 15 15 0 0 1-4 10"/><path d="M12 2a15 15 0 0 0-4 10 15 15 0 0 0 4 10"/><path d="M2 12h20"/></svg>', html:`
+      <h2 style="margin:0 0 16px;font-size:18px;color:var(--text);">Site Configuration</h2>
+      <h3 style="margin:0 0 8px;font-size:14px;color:var(--text);">Domain Entry</h3>
+      <p style="margin:0 0 8px;font-size:13px;color:var(--text-dim);">Enter the store domain only — no <code ${cS}>https://</code> prefix, no trailing path.</p>
+      <p style="margin:0 0 4px;font-size:13px;">✅ <code ${cS}>kith.com</code></p>
+      <p style="margin:0 0 14px;font-size:13px;">❌ <code ${cS}>https://kith.com/collections/new</code></p>
+      <h3 style="margin:16px 0 8px;font-size:14px;color:var(--text);">Special Checkout Domains</h3>
+      <p style="margin:0;font-size:13px;color:var(--text-dim);">Some stores use a separate checkout domain (e.g. <code ${cS}>pay.kith.com</code>). If checkout redirects fail, check whether the site uses a custom checkout URL and enter that instead.</p>`},
+
+    { id:"profile", title:"Profile", icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>', html:`
+      <h2 style="margin:0 0 16px;font-size:18px;color:var(--text);">Profile Setup</h2>
+      <h3 style="margin:0 0 8px;font-size:14px;color:var(--text);">Editing Profiles</h3>
+      <p style="margin:0 0 10px;font-size:13px;color:var(--text-dim);">Use <strong style="color:var(--text)">RonsEditor</strong> or this app's built-in profile editor. Every field must have a value — no empty fields.</p>
+      <h3 style="margin:16px 0 8px;font-size:14px;color:var(--text);">Country &amp; State Codes</h3>
+      <table ${tS}><tr><th ${thS}>Field</th><th ${thS}>Format</th><th ${thS}>Example</th></tr>
+      <tr><td ${tdS}>Country</td><td ${tdS}>Two-letter ISO code</td><td ${tdS}><code ${cS}>US</code>, <code ${cS}>CA</code>, <code ${cS}>GB</code></td></tr>
+      <tr><td ${tdS}>State / Province</td><td ${tdS}>Full region code</td><td ${tdS}><code ${cS}>US-NY</code>, <code ${cS}>CA-ON</code></td></tr></table>
+      <p style="margin:8px 0 0;font-size:12px;color:var(--text-dim);">State/province must include the country prefix (e.g. <code ${cS}>US-CA</code> not just <code ${cS}>CA</code>).</p>`},
+
+    { id:"taskcsv", title:"Task CSV", icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4h4"/><path d="M8 13h2M8 17h2"/></svg>', children:[
+      { id:"input", title:"Input" },
+      { id:"multicart", title:"Multi-Cart" },
+    ], html:`
+      <h2 style="margin:0 0 16px;font-size:18px;color:var(--text);">Task Input — Keywords &amp; Variants</h2>
+      <h3 id="help-input" style="margin:0 0 8px;font-size:14px;color:var(--text);">Input Guidelines</h3>
+      <table ${tS}><tr><th ${thS}>Field</th><th ${thS}>Format</th><th ${thS}>Example</th></tr>
+      <tr><td ${tdS}>Keyword</td><td ${tdS}>Plain text — matches product titles</td><td ${tdS}><code ${cS}>yeezy slide</code></td></tr>
+      <tr><td ${tdS}>Variant</td><td ${tdS}>Starts with <code ${cS}>:</code></td><td ${tdS}><code ${cS}>:44532194181288</code></td></tr>
+      <tr><td ${tdS}>Exclude</td><td ${tdS}>Prefix with <code ${cS}>-</code></td><td ${tdS}><code ${cS}>yeezy slide -onyx</code></td></tr></table>
+      <p style="margin:12px 0 6px;font-size:13px;color:var(--text-dim);">Do not use <code ${cS}>+</code> symbols for keywords — separate keywords with spaces. Use <code ${cS}>-</code> before a keyword to exclude it.</p>
+      <h3 style="margin:18px 0 8px;font-size:14px;color:var(--text);">Multiple Variants</h3>
+      <p style="margin:0 0 6px;font-size:13px;color:var(--text-dim);">Separate with <code ${cS}>##</code>: <code ${cS}>:44532194181288##:44532194181295</code></p>
+      <p style="margin:0 0 6px;font-size:13px;color:var(--text-dim);">Use <code ${cS}>:random</code> as a wildcard fallback if the specific variant is sold out.</p>
+      <p style="margin:0 0 0;font-size:13px;color:var(--text-dim);">Selection among multiple variants is random. If you want a specific variant, input only that one.</p>
+      <h3 style="margin:18px 0 8px;font-size:14px;color:var(--text);">Detection Limit</h3>
+      <p style="margin:0;font-size:13px;color:var(--text-dim);">MakeBot+ scans up to <strong style="color:var(--text)">25 items</strong> from the sitemap by default. If the target product is deeper in the catalog, use a variant ID instead of keywords.</p>
+      <h3 id="help-multicart" style="margin:18px 0 8px;font-size:14px;color:var(--text);">Multi-Cart (Beta)</h3>
+      <p style="margin:0;font-size:13px;color:var(--text-dim);">To add multiple products to one cart, separate keywords with <code ${cS}>+</code>: <code ${cS}>yeezy slide + yeezy foam</code>. Both items are carted before checkout. You cannot mix keywords and variants in a multi-cart.</p>`},
+
+    { id:"account", title:"Account", icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg>', html:`
+      <h2 style="margin:0 0 16px;font-size:18px;color:var(--text);">Accounts &amp; Login Mode</h2>
+      <h3 style="margin:0 0 8px;font-size:14px;color:var(--text);">Login Mode</h3>
+      <p style="margin:0 0 10px;font-size:13px;color:var(--text-dim);">Add <code ${cS}>login</code> to your mode string (e.g. <code ${cS}>preloadwaitlogin</code>) to log into a Shopify customer account before carting. Requires an accounts file loaded with <code ${cS}>email:password</code> pairs.</p>
+      <h3 style="margin:16px 0 8px;font-size:14px;color:var(--text);">Cookie Saving</h3>
+      <p style="margin:0 0 10px;font-size:13px;color:var(--text-dim);">Add <code ${cS}>store</code> to your mode to save session cookies after a successful run. On the next run, the bot reuses them to skip login/captcha.</p>
+      <h3 style="margin:16px 0 8px;font-size:14px;color:var(--text);">Manual Cookie Generation</h3>
+      <p style="margin:0;font-size:13px;color:var(--text-dim);">Open the <strong style="color:var(--text)">Pre-cookie</strong> tab, load your accounts, and run. The bot visits the target site, solves captchas, and stores cookies for later checkout runs.</p>`},
+
+    { id:"proxy", title:"Proxy Format", icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>', html:`
+      <h2 style="margin:0 0 16px;font-size:18px;color:var(--text);">Proxy Format</h2>
+      <h3 style="margin:0 0 8px;font-size:14px;color:var(--text);">Supported Formats</h3>
+      <table ${tS}><tr><th ${thS}>Format</th><th ${thS}>Example</th></tr>
+      <tr><td ${tdS}><code ${cS}>ip:port</code></td><td ${tdS}><code ${cS}>192.168.1.1:8080</code></td></tr>
+      <tr><td ${tdS}><code ${cS}>ip:port:user:pass</code></td><td ${tdS}><code ${cS}>192.168.1.1:8080:admin:secret</code></td></tr>
+      <tr><td ${tdS}><code ${cS}>user:pass@ip:port</code></td><td ${tdS}><code ${cS}>admin:secret@192.168.1.1:8080</code></td></tr></table>
+      <p style="margin:10px 0 0;font-size:13px;color:var(--text-dim);">One proxy per line. Residential or ISP proxies recommended — datacenter proxies are commonly blocked by Shopify.</p>`},
+
+    { id:"errors", title:"Error List", icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>', html:`
+      <h2 style="margin:0 0 16px;font-size:18px;color:var(--text);">Error Reference</h2>
+      <h3 style="margin:0 0 8px;font-size:14px;color:var(--text);">Auth / Session Errors</h3>
+      <table ${tS}><tr><th ${thS}>Error</th><th ${thS}>Meaning</th></tr>
+      <tr><td ${tdS}><code ${cS}>Auth token expired</code></td><td ${tdS}>Session cookie is stale — regenerate cookies or restart.</td></tr>
+      <tr><td ${tdS}><code ${cS}>Captcha failed</code></td><td ${tdS}>Captcha solver returned wrong answer — retries automatically.</td></tr>
+      <tr><td ${tdS}><code ${cS}>Checkpoint detected</code></td><td ${tdS}>Site requires captcha before proceeding — use <code ${cS}>wait</code> mode.</td></tr>
+      <tr><td ${tdS}><code ${cS}>Login failed</code></td><td ${tdS}>Bad email/password or account locked — check credentials file.</td></tr></table>
+      <h3 style="margin:20px 0 8px;font-size:14px;color:var(--text);">Proxy Errors</h3>
+      <table ${tS}><tr><th ${thS}>Error</th><th ${thS}>Meaning</th></tr>
+      <tr><td ${tdS}><code ${cS}>Proxy timeout</code></td><td ${tdS}>Proxy didn't respond in time — try different proxy or provider.</td></tr>
+      <tr><td ${tdS}><code ${cS}>Proxy auth failed</code></td><td ${tdS}>Wrong username/password for the proxy.</td></tr>
+      <tr><td ${tdS}><code ${cS}>Proxy banned</code></td><td ${tdS}>IP is blocked by the store — rotate proxies.</td></tr>
+      <tr><td ${tdS}><code ${cS}>ECONNREFUSED</code></td><td ${tdS}>Proxy server is down or unreachable.</td></tr></table>
+      <h3 style="margin:20px 0 8px;font-size:14px;color:var(--text);">Task Errors</h3>
+      <table ${tS}><tr><th ${thS}>Error</th><th ${thS}>Meaning</th></tr>
+      <tr><td ${tdS}><code ${cS}>Product not found</code></td><td ${tdS}>Keywords didn't match anything in the first 25 products. Use variant ID.</td></tr>
+      <tr><td ${tdS}><code ${cS}>Size not found</code></td><td ${tdS}>Requested size isn't available for this product. Check size labels exactly.</td></tr>
+      <tr><td ${tdS}><code ${cS}>Out of stock</code></td><td ${tdS}>Variant is sold out — task will retry if in stuck mode.</td></tr>
+      <tr><td ${tdS}><code ${cS}>Cart empty</code></td><td ${tdS}>Item was removed from cart between carting and checkout.</td></tr></table>
+      <h3 style="margin:20px 0 8px;font-size:14px;color:var(--text);">Order / Checkout Errors</h3>
+      <table ${tS}><tr><th ${thS}>Error</th><th ${thS}>Meaning</th></tr>
+      <tr><td ${tdS}><code ${cS}>Card declined</code></td><td ${tdS}>Payment processor rejected the card. Try a different card or profile.</td></tr>
+      <tr><td ${tdS}><code ${cS}>Rate limited</code></td><td ${tdS}>Too many checkout attempts — back off or use fewer tasks per site.</td></tr>
+      <tr><td ${tdS}><code ${cS}>Queue detected</code></td><td ${tdS}>Site has a waiting room — use <code ${cS}>stuck</code> mode to sit in queue.</td></tr>
+      <tr><td ${tdS}><code ${cS}>Checkout blocked</code></td><td ${tdS}>Store flagged the session — rotate proxy + regenerate cookies.</td></tr></table>`},
+
+    { id:"troubleshoot", title:"Troubleshooting", icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a3 3 0 0 1-4.2 4.2l-.8-.6L8 17.6a2 2 0 1 1-2.8-2.9l8.5-8.4-.6-.8a3 3 0 0 1 4.2-4.2Z"/></svg>', html:`
+      <h2 style="margin:0 0 16px;font-size:18px;color:var(--text);">Troubleshooting</h2>
+      <h3 style="margin:0 0 8px;font-size:14px;color:var(--text);">General Checklist</h3>
+      <ol style="margin:0;padding-left:18px;line-height:1.8;font-size:13px;color:var(--text-dim);">
+        <li>Check the <strong style="color:var(--text)">error log</strong> in the Engine tab for the exact error message.</li>
+        <li>Verify your <strong style="color:var(--text)">profiles</strong> have no empty fields and use correct country/state codes.</li>
+        <li>Make sure <strong style="color:var(--text)">proxies</strong> are alive — test them with a proxy checker first.</li>
+        <li>If using <strong style="color:var(--text)">keywords</strong>, confirm the product is within the 25-item detection limit.</li>
+        <li>For <strong style="color:var(--text)">restocks</strong>, make sure you're using a <code ${cS}>stuck</code> mode variant.</li>
+        <li>If checkouts keep failing, try <strong style="color:var(--text)">regenerating cookies</strong> via the Pre-cookie tab.</li>
+        <li>Rotate between <strong style="color:var(--text)">ISP and residential</strong> proxies — DCs get banned fastest.</li>
+      </ol>
+      <h3 style="margin:20px 0 8px;font-size:14px;color:var(--text);">Engine Won't Start</h3>
+      <ul style="margin:0;padding-left:18px;line-height:1.75;font-size:13px;color:var(--text-dim);">
+        <li>Make sure <code ${cS}>make-engine.exe</code> path is set in Settings.</li>
+        <li>Check that no other instance is already running (check Task Manager).</li>
+        <li>Run as administrator if file-access errors appear.</li>
+      </ul>
+      <h3 style="margin:20px 0 8px;font-size:14px;color:var(--text);">Webhook Not Receiving Checkouts</h3>
+      <ul style="margin:0;padding-left:18px;line-height:1.75;font-size:13px;color:var(--text-dim);">
+        <li>Confirm the webhook URL is set in Settings and points to a valid Discord webhook.</li>
+        <li>Check that the bot token is entered if using Discord bot-based routing.</li>
+        <li>Firewall or antivirus may block the local webhook listener — whitelist MakeBot+.</li>
+      </ul>`},
+
+    { id:"shortcuts", title:"Keyboard Shortcuts", icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10"/></svg>', html:`
+      <h2 style="margin:0 0 16px;font-size:18px;color:var(--text);">Keyboard Shortcuts</h2>
+      <table ${tS}><tr><th ${thS}>Shortcut</th><th ${thS}>Action</th></tr>
+      <tr><td ${tdS}><kbd ${kbdS}>Ctrl+Shift+S</kbd></td><td ${tdS}>Start / stop engine</td></tr>
+      <tr><td ${tdS}><kbd ${kbdS}>Ctrl+Shift+D</kbd></td><td ${tdS}>Open DevTools</td></tr></table>`},
+  ];
+
+  /* ═══ LAYOUT: sidebar + content ═══ */
+  const layout = mk("div","help-layout");
+  layout.style.cssText = "display:flex;height:100%;overflow:hidden;";
+
+  /* ── left sidebar (chapters) ── */
+  const sidebar = mk("nav","help-sidebar");
+  sidebar.style.cssText = "width:220px;min-width:220px;border-right:1px solid var(--border);overflow-y:auto;padding:16px 0;display:flex;flex-direction:column;gap:2px;";
+
+  /* ── right content pane ── */
+  const content = mk("div","help-content");
+  content.style.cssText = "flex:1;overflow-y:auto;padding:28px 36px 60px;";
+
+  let activeBtn = null;
+  function showChapter(ch) {
+    content.innerHTML = ch.html;
+    if (activeBtn) activeBtn.classList.remove("help-active");
+    const btn = sidebar.querySelector(`[data-ch="${ch.id}"]`);
+    if (btn) { btn.classList.add("help-active"); activeBtn = btn; }
   }
 
-  /* helper for tables */
-  const tblStyle = 'style="width:100%;border-collapse:collapse;margin:8px 0 4px;font-size:12.5px;"';
-  const thStyle  = 'style="text-align:left;padding:6px 10px;border-bottom:2px solid var(--border);color:var(--text);font-weight:600;"';
-  const tdStyle  = 'style="padding:6px 10px;border-bottom:1px solid var(--border);vertical-align:top;"';
-  const codeS    = 'style="background:var(--raised);padding:1px 5px;border-radius:4px;font-family:monospace;font-size:12px;"';
+  CHAPTERS.forEach(ch => {
+    const item = mk("div");
+    item.style.cssText = "display:flex;flex-direction:column;";
 
-  /* ═══ SECTIONS ═══ */
+    const btn = mk("button","help-ch-btn");
+    btn.dataset.ch = ch.id;
+    btn.innerHTML = `<span style="display:flex;align-items:center;gap:8px;">${ch.icon}<span>${ch.title}</span></span>`;
+    if (ch.children) btn.innerHTML += '<span style="font-size:9px;margin-left:auto;opacity:.5;">▾</span>';
+    btn.style.cssText = "display:flex;align-items:center;justify-content:space-between;width:100%;padding:7px 16px;border:none;background:none;color:var(--text-dim);font-size:13px;font-weight:500;cursor:pointer;text-align:left;border-radius:0;transition:all .12s;border-left:2px solid transparent;";
+    btn.onmouseenter = () => { if (!btn.classList.contains("help-active")) btn.style.background = "var(--raised)"; };
+    btn.onmouseleave = () => { if (!btn.classList.contains("help-active")) btn.style.background = "none"; };
+    btn.onclick = () => {
+      showChapter(ch);
+      btn.style.background = "color-mix(in srgb,var(--accent) 10%,var(--surface))";
+    };
+    item.appendChild(btn);
 
-  wrap.appendChild(section("Modes &amp; Sub-modes", `
-    <p style="margin:0 0 10px"><strong style="color:var(--text)">Main Modes</strong></p>
-    <table ${tblStyle}>
-      <tr><th ${thStyle}>Mode</th><th ${thStyle}>Description</th></tr>
-      <tr><td ${tdStyle}><code ${codeS}>preload</code></td><td ${tdStyle}>High-speed — data is pre-prepared before drop. The primary mode for most releases.</td></tr>
-      <tr><td ${tdStyle}><code ${codeS}>direct</code></td><td ${tdStyle}>No preloading — used for domain changes, site launches, or when product pages aren't up yet.</td></tr>
-    </table>
-    <p style="margin:14px 0 6px;color:var(--text-dim);font-size:12px;">⚠️ <code ${codeS}>safe</code>, <code ${codeS}>fast</code>, and <code ${codeS}>human</code> are <strong>deprecated</strong> — they still run but are no longer recommended.</p>
+    if (ch.children) {
+      ch.children.forEach(sub => {
+        const subBtn = mk("button","help-ch-btn help-ch-sub");
+        subBtn.dataset.ch = sub.id;
+        subBtn.textContent = sub.title;
+        subBtn.style.cssText = "display:block;width:100%;padding:5px 16px 5px 42px;border:none;background:none;color:var(--text-muted);font-size:12px;cursor:pointer;text-align:left;border-radius:0;transition:all .12s;border-left:2px solid transparent;";
+        subBtn.onmouseenter = () => { if (!subBtn.classList.contains("help-active")) subBtn.style.background = "var(--raised)"; };
+        subBtn.onmouseleave = () => { if (!subBtn.classList.contains("help-active")) subBtn.style.background = "none"; };
+        subBtn.onclick = () => {
+          showChapter(ch);
+          subBtn.style.background = "color-mix(in srgb,var(--accent) 10%,var(--surface))";
+          // scroll to the sub-section anchor
+          setTimeout(()=>{ const el = content.querySelector("#help-"+sub.id); if (el) el.scrollIntoView({behavior:"smooth",block:"start"}); },50);
+          if (activeBtn) activeBtn.classList.remove("help-active");
+          subBtn.classList.add("help-active"); activeBtn = subBtn;
+        };
+        item.appendChild(subBtn);
+      });
+    }
 
-    <p style="margin:16px 0 10px"><strong style="color:var(--text)">Sub-modes</strong></p>
-    <table ${tblStyle}>
-      <tr><th ${thStyle}>Sub-mode</th><th ${thStyle}>What it does</th></tr>
-      <tr><td ${tdStyle}><code ${codeS}>wait</code></td><td ${tdStyle}>Waits for a captcha/checkpoint before proceeding.</td></tr>
-      <tr><td ${tdStyle}><code ${codeS}>pause</code></td><td ${tdStyle}>Pauses the task right before checkout for manual confirmation.</td></tr>
-      <tr><td ${tdStyle}><code ${codeS}>login</code></td><td ${tdStyle}>Logs into a Shopify account before carting (requires accounts file).</td></tr>
-      <tr><td ${tdStyle}><code ${codeS}>stuck</code></td><td ${tdStyle}>For restocks — sits in queue instead of retrying the product page.</td></tr>
-      <tr><td ${tdStyle}><code ${codeS}>shoppay</code></td><td ${tdStyle}>Attempts ShopPay express checkout (requires account + saved card).</td></tr>
-      <tr><td ${tdStyle}><code ${codeS}>lite</code></td><td ${tdStyle}>Skips checkpoint monitor — relies on another task group to handle it.</td></tr>
-      <tr><td ${tdStyle}><code ${codeS}>store</code></td><td ${tdStyle}>Stores/saves cookies for reuse on later runs.</td></tr>
-      <tr><td ${tdStyle}><code ${codeS}>free</code></td><td ${tdStyle}>Skips payment — for 100% discount / free-checkout items.</td></tr>
-      <tr><td ${tdStyle}><code ${codeS}>cod</code></td><td ${tdStyle}>Cash On Delivery — skips the payment step entirely.</td></tr>
-    </table>
+    sidebar.appendChild(item);
+  });
 
-    <p style="margin:16px 0 10px"><strong style="color:var(--text)">Valid Combined Modes</strong></p>
-    <table ${tblStyle}>
-      <tr><th ${thStyle}>Combined Mode</th><th ${thStyle}>Behaviour</th></tr>
-      <tr><td ${tdStyle}><code ${codeS}>preload</code></td><td ${tdStyle}>Standard preload.</td></tr>
-      <tr><td ${tdStyle}><code ${codeS}>preloadwait</code></td><td ${tdStyle}>Preload + waits for captcha checkpoint.</td></tr>
-      <tr><td ${tdStyle}><code ${codeS}>preloadstuck</code></td><td ${tdStyle}>Preload for restocks with stuck queue.</td></tr>
-      <tr><td ${tdStyle}><code ${codeS}>preloadstuckwait</code></td><td ${tdStyle}>Preload + stuck queue + captcha wait.</td></tr>
-      <tr><td ${tdStyle}><code ${codeS}>preloadwaitlite</code></td><td ${tdStyle}>Preload + captcha wait, no checkpoint monitor.</td></tr>
-      <tr><td ${tdStyle}><code ${codeS}>preloadwaitlitestuck</code></td><td ${tdStyle}>Preload + wait + lite + stuck queue.</td></tr>
-      <tr><td ${tdStyle}><code ${codeS}>direct</code></td><td ${tdStyle}>No preload.</td></tr>
-      <tr><td ${tdStyle}><code ${codeS}>wait</code></td><td ${tdStyle}>Waits for checkpoint captcha.</td></tr>
-      <tr><td ${tdStyle}><code ${codeS}>lite</code></td><td ${tdStyle}>No checkpoint monitor, relies on other tasks.</td></tr>
-    </table>
+  layout.appendChild(sidebar);
+  layout.appendChild(content);
+  p.appendChild(layout);
 
-    <p style="margin:14px 0 6px"><strong style="color:var(--text)">Recommended Setups</strong></p>
-    <ul style="margin:0;padding-left:18px;">
-      <li><strong>Restocks / Sitting:</strong> <code ${codeS}>preloadstuckwait</code> — queue + captcha wait.</li>
-      <li><strong>Standard drops:</strong> <code ${codeS}>preloadwait</code> — preload + captcha.</li>
-      <li><strong>Multiple groups, one monitor:</strong> Group 1 uses <code ${codeS}>preloadwait</code>, others use <code ${codeS}>preloadwaitlite</code>.</li>
-      <li><strong>Unknown domain / site launch:</strong> <code ${codeS}>direct</code>.</li>
-    </ul>
-  `));
+  /* ── active state styling (injected once) ── */
+  if (!document.getElementById("help-styles")) {
+    const st = document.createElement("style"); st.id = "help-styles";
+    st.textContent = `
+      .help-ch-btn.help-active{background:color-mix(in srgb,var(--accent) 10%,var(--surface))!important;color:var(--text)!important;border-left-color:var(--accent)!important;font-weight:600!important}
+      .help-content h2{font-weight:700;letter-spacing:-.01em}
+      .help-content h3{font-weight:600}
+      .help-content table{border-radius:8px;overflow:hidden}
+      .help-content p,.help-content li{color:var(--text-dim)}
+      .help-content strong{color:var(--text)}
+    `;
+    document.head.appendChild(st);
+  }
 
-  wrap.appendChild(section("Task Input — Keywords &amp; Variants", `
-    <p style="margin:0 0 10px"><strong style="color:var(--text)">Keywords vs Variants</strong></p>
-    <table ${tblStyle}>
-      <tr><th ${thStyle}>Field</th><th ${thStyle}>Format</th><th ${thStyle}>Example</th></tr>
-      <tr><td ${tdStyle}>Keyword</td><td ${tdStyle}>Plain text — matches product titles</td><td ${tdStyle}><code ${codeS}>yeezy slide</code></td></tr>
-      <tr><td ${tdStyle}>Variant</td><td ${tdStyle}>Starts with <code ${codeS}>:</code></td><td ${tdStyle}><code ${codeS}>:44532194181288</code></td></tr>
-      <tr><td ${tdStyle}>Exclude</td><td ${tdStyle}>Prefix with <code ${codeS}>-</code></td><td ${tdStyle}><code ${codeS}>yeezy slide -onyx</code></td></tr>
-    </table>
-
-    <p style="margin:14px 0 6px"><strong style="color:var(--text)">Multiple Variants</strong></p>
-    <p style="margin:0 0 8px;">Separate with <code ${codeS}>##</code>: <code ${codeS}>:44532194181288##:44532194181295</code></p>
-    <p style="margin:0 0 8px;">Use <code ${codeS}>:random</code> as a wildcard fallback if the specific variant is sold out.</p>
-
-    <p style="margin:14px 0 6px"><strong style="color:var(--text)">Detection Limit</strong></p>
-    <p style="margin:0;">MakeBot+ scans up to <strong>25 items</strong> from the sitemap by default. If the target product is deeper in the catalog, use a variant ID instead of keywords.</p>
-
-    <p style="margin:14px 0 6px"><strong style="color:var(--text)">Multi-Cart (Beta)</strong></p>
-    <p style="margin:0;">To add multiple products to one cart, separate keywords with <code ${codeS}>+</code>: <code ${codeS}>yeezy slide + yeezy foam</code>. Both items are carted before checkout.</p>
-  `));
-
-  wrap.appendChild(section("Site Configuration", `
-    <p style="margin:0 0 10px"><strong style="color:var(--text)">Domain Entry</strong></p>
-    <p style="margin:0 0 8px;">Enter the store domain only — no <code ${codeS}>https://</code> prefix, no trailing path.</p>
-    <p style="margin:0 0 4px;">✅ <code ${codeS}>kith.com</code></p>
-    <p style="margin:0 0 12px;">❌ <code ${codeS}>https://kith.com/collections/new</code></p>
-
-    <p style="margin:14px 0 6px"><strong style="color:var(--text)">Special Checkout Domains</strong></p>
-    <p style="margin:0;">Some stores use a separate checkout domain (e.g. <code ${codeS}>pay.kith.com</code>). If checkout redirects fail, check whether the site uses a custom checkout URL and enter that instead.</p>
-  `));
-
-  wrap.appendChild(section("Profile Setup", `
-    <p style="margin:0 0 10px"><strong style="color:var(--text)">Editing Profiles</strong></p>
-    <p style="margin:0 0 8px;">Use <strong>RonsEditor</strong> or this app's built-in profile editor. Every field must have a value — <em>no empty fields</em>.</p>
-
-    <p style="margin:14px 0 6px"><strong style="color:var(--text)">Country &amp; State Codes</strong></p>
-    <table ${tblStyle}>
-      <tr><th ${thStyle}>Field</th><th ${thStyle}>Format</th><th ${thStyle}>Example</th></tr>
-      <tr><td ${tdStyle}>Country</td><td ${tdStyle}>Two-letter ISO code</td><td ${tdStyle}><code ${codeS}>US</code>, <code ${codeS}>CA</code>, <code ${codeS}>GB</code></td></tr>
-      <tr><td ${tdStyle}>State / Province</td><td ${tdStyle}>Full region code</td><td ${tdStyle}><code ${codeS}>US-NY</code>, <code ${codeS}>CA-ON</code></td></tr>
-    </table>
-    <p style="margin:8px 0 0;font-size:12px;color:var(--text-dim);">State/province must include the country prefix (e.g. <code ${codeS}>US-CA</code> not just <code ${codeS}>CA</code>).</p>
-  `));
-
-  wrap.appendChild(section("Accounts &amp; Login Mode", `
-    <p style="margin:0 0 10px"><strong style="color:var(--text)">Login Mode</strong></p>
-    <p style="margin:0 0 8px;">Add <code ${codeS}>login</code> to your mode string (e.g. <code ${codeS}>preloadwaitlogin</code>) to log into a Shopify customer account before carting. Requires an accounts file loaded with <code ${codeS}>email:password</code> pairs.</p>
-
-    <p style="margin:14px 0 6px"><strong style="color:var(--text)">Cookie Saving</strong></p>
-    <p style="margin:0 0 8px;">Add <code ${codeS}>store</code> to your mode to save session cookies after a successful run. On the next run, the bot reuses them to skip login/captcha.</p>
-
-    <p style="margin:14px 0 6px"><strong style="color:var(--text)">Manual Cookie Generation</strong></p>
-    <p style="margin:0;">Open the <strong>Pre-cookie</strong> tab, load your accounts, and run. The bot visits the target site, solves captchas, and stores cookies for later checkout runs.</p>
-  `));
-
-  wrap.appendChild(section("Task Groups", `
-    <p style="margin:0 0 10px"><strong style="color:var(--text)">Group Numbers</strong></p>
-    <ul style="margin:0;padding-left:18px;">
-      <li>Enter <code ${codeS}>1</code> for <strong>all tasks start together</strong>.</li>
-      <li>Enter <code ${codeS}>2</code> for <strong>staggered start</strong> — second batch waits for group 1 to begin checkout.</li>
-      <li>Higher numbers create more stagger tiers.</li>
-    </ul>
-    <p style="margin:10px 0 0;">Task groups control execution order when running multiple task sets targeting the same or different products.</p>
-  `));
-
-  wrap.appendChild(section("Proxy Format", `
-    <p style="margin:0 0 10px"><strong style="color:var(--text)">Supported Formats</strong></p>
-    <table ${tblStyle}>
-      <tr><th ${thStyle}>Format</th><th ${thStyle}>Example</th></tr>
-      <tr><td ${tdStyle}><code ${codeS}>ip:port</code></td><td ${tdStyle}><code ${codeS}>192.168.1.1:8080</code></td></tr>
-      <tr><td ${tdStyle}><code ${codeS}>ip:port:user:pass</code></td><td ${tdStyle}><code ${codeS}>192.168.1.1:8080:admin:secret</code></td></tr>
-      <tr><td ${tdStyle}><code ${codeS}>user:pass@ip:port</code></td><td ${tdStyle}><code ${codeS}>admin:secret@192.168.1.1:8080</code></td></tr>
-    </table>
-    <p style="margin:10px 0 0;">One proxy per line. Residential or ISP proxies recommended — datacenter proxies are commonly blocked by Shopify.</p>
-  `));
-
-  wrap.appendChild(section("Error Reference", `
-    <p style="margin:0 0 10px"><strong style="color:var(--text)">Auth / Session Errors</strong></p>
-    <table ${tblStyle}>
-      <tr><th ${thStyle}>Error</th><th ${thStyle}>Meaning</th></tr>
-      <tr><td ${tdStyle}><code ${codeS}>Auth token expired</code></td><td ${tdStyle}>Session cookie is stale — regenerate cookies or restart.</td></tr>
-      <tr><td ${tdStyle}><code ${codeS}>Captcha failed</code></td><td ${tdStyle}>Captcha solver returned wrong answer — retries automatically.</td></tr>
-      <tr><td ${tdStyle}><code ${codeS}>Checkpoint detected</code></td><td ${tdStyle}>Site requires captcha before proceeding — use <code ${codeS}>wait</code> mode.</td></tr>
-      <tr><td ${tdStyle}><code ${codeS}>Login failed</code></td><td ${tdStyle}>Bad email/password or account locked — check credentials file.</td></tr>
-    </table>
-
-    <p style="margin:16px 0 10px"><strong style="color:var(--text)">Proxy Errors</strong></p>
-    <table ${tblStyle}>
-      <tr><th ${thStyle}>Error</th><th ${thStyle}>Meaning</th></tr>
-      <tr><td ${tdStyle}><code ${codeS}>Proxy timeout</code></td><td ${tdStyle}>Proxy didn't respond in time — try different proxy or provider.</td></tr>
-      <tr><td ${tdStyle}><code ${codeS}>Proxy auth failed</code></td><td ${tdStyle}>Wrong username/password for the proxy.</td></tr>
-      <tr><td ${tdStyle}><code ${codeS}>Proxy banned</code></td><td ${tdStyle}>IP is blocked by the store — rotate proxies.</td></tr>
-      <tr><td ${tdStyle}><code ${codeS}>ECONNREFUSED</code></td><td ${tdStyle}>Proxy server is down or unreachable.</td></tr>
-    </table>
-
-    <p style="margin:16px 0 10px"><strong style="color:var(--text)">Task Errors</strong></p>
-    <table ${tblStyle}>
-      <tr><th ${thStyle}>Error</th><th ${thStyle}>Meaning</th></tr>
-      <tr><td ${tdStyle}><code ${codeS}>Product not found</code></td><td ${tdStyle}>Keywords didn't match anything in the first 25 products. Use variant ID.</td></tr>
-      <tr><td ${tdStyle}><code ${codeS}>Size not found</code></td><td ${tdStyle}>Requested size isn't available for this product. Check size labels exactly.</td></tr>
-      <tr><td ${tdStyle}><code ${codeS}>Out of stock</code></td><td ${tdStyle}>Variant is sold out — task will retry if in stuck mode.</td></tr>
-      <tr><td ${tdStyle}><code ${codeS}>Cart empty</code></td><td ${tdStyle}>Item was removed from cart between carting and checkout.</td></tr>
-    </table>
-
-    <p style="margin:16px 0 10px"><strong style="color:var(--text)">Order / Checkout Errors</strong></p>
-    <table ${tblStyle}>
-      <tr><th ${thStyle}>Error</th><th ${thStyle}>Meaning</th></tr>
-      <tr><td ${tdStyle}><code ${codeS}>Card declined</code></td><td ${tdStyle}>Payment processor rejected the card. Try a different card or profile.</td></tr>
-      <tr><td ${tdStyle}><code ${codeS}>Rate limited</code></td><td ${tdStyle}>Too many checkout attempts — back off or use fewer tasks per site.</td></tr>
-      <tr><td ${tdStyle}><code ${codeS}>Queue detected</code></td><td ${tdStyle}>Site has a waiting room — use <code ${codeS}>stuck</code> mode to sit in queue.</td></tr>
-      <tr><td ${tdStyle}><code ${codeS}>Checkout blocked</code></td><td ${tdStyle}>Store flagged the session — rotate proxy + regenerate cookies.</td></tr>
-    </table>
-  `));
-
-  wrap.appendChild(section("Troubleshooting", `
-    <p style="margin:0 0 10px"><strong style="color:var(--text)">General Checklist</strong></p>
-    <ol style="margin:0;padding-left:18px;line-height:1.8;">
-      <li>Check the <strong>error log</strong> in the Engine tab for the exact error message.</li>
-      <li>Verify your <strong>profiles</strong> have no empty fields and use correct country/state codes.</li>
-      <li>Make sure <strong>proxies</strong> are alive — test them with a proxy checker first.</li>
-      <li>If using <strong>keywords</strong>, confirm the product is within the 25-item detection limit.</li>
-      <li>For <strong>restocks</strong>, make sure you're using a <code ${codeS}>stuck</code> mode variant.</li>
-      <li>If checkouts keep failing, try <strong>regenerating cookies</strong> via the Pre-cookie tab.</li>
-      <li>Rotate between <strong>ISP and residential</strong> proxies — DCs get banned fastest.</li>
-    </ol>
-
-    <p style="margin:16px 0 10px"><strong style="color:var(--text)">Engine Won't Start</strong></p>
-    <ul style="margin:0;padding-left:18px;">
-      <li>Make sure <code ${codeS}>make-engine.exe</code> path is set in Settings.</li>
-      <li>Check that no other instance is already running (check Task Manager).</li>
-      <li>Run as administrator if file-access errors appear.</li>
-    </ul>
-
-    <p style="margin:16px 0 10px"><strong style="color:var(--text)">Webhook Not Receiving Checkouts</strong></p>
-    <ul style="margin:0;padding-left:18px;">
-      <li>Confirm the webhook URL is set in Settings and points to a valid Discord webhook.</li>
-      <li>Check that the bot token is entered if using Discord bot-based routing.</li>
-      <li>Firewall or antivirus may block the local webhook listener — whitelist MakeBot+.</li>
-    </ul>
-  `));
-
-  wrap.appendChild(section("Keyboard Shortcuts", `
-    <table ${tblStyle}>
-      <tr><th ${thStyle}>Shortcut</th><th ${thStyle}>Action</th></tr>
-      <tr><td ${tdStyle}><kbd style="background:var(--raised);padding:2px 7px;border-radius:4px;font-size:12px;border:1px solid var(--border);">Ctrl+Shift+S</kbd></td><td ${tdStyle}>Start / stop engine</td></tr>
-      <tr><td ${tdStyle}><kbd style="background:var(--raised);padding:2px 7px;border-radius:4px;font-size:12px;border:1px solid var(--border);">Ctrl+Shift+D</kbd></td><td ${tdStyle}>Open DevTools</td></tr>
-    </table>
-  `));
-
-  /* ── search filtering ── */
-  search.oninput = () => {
-    const q = search.value.toLowerCase().trim();
-    wrap.querySelectorAll("details.help-section").forEach(d => {
-      const match = !q || d.textContent.toLowerCase().includes(q);
-      d.style.display = match ? "" : "none";
-      if (q && match) d.open = true;
-    });
-  };
-
-  p.appendChild(wrap);
+  // show first chapter by default
+  showChapter(CHAPTERS[0]);
 }
 
 // ── CHANGELOG ────────────────────────────────────────────────────────────────
